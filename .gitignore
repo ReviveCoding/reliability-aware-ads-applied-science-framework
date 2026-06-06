@@ -22,3 +22,7 @@ outputs/*ensemble_candidates.json
 *.zip
 *.gz
 *.parquet
+
+outputs/*query_metrics.csv
+outputs/policy_comparison.csv
+outputs/slice_metrics.csv
