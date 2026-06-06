@@ -1,0 +1,3 @@
+mode: sample
+n_rows: 50000
+random_seed: 42

@@ -1,0 +1,12 @@
+mode: smoke
+n_rows: 600
+n_products: 80
+n_queries: 32
+random_seed: 42
+top_fraction: 0.2
+release:
+  max_ece: 0.12
+  max_sparse_ece: 0.22
+  max_false_high_rank_irrelevant_rate: 0.35
+  min_long_tail_exposure: 0.08
+  min_ope_lcb_lift: -0.01

@@ -1,0 +1,3 @@
+mode: full
+random_seed: 42
+notes: "Full mode is optional and requires external public data."
