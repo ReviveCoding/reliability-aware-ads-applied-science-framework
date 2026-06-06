@@ -1,0 +1,91 @@
+{
+  "dataset": "Criteo Click Logs local public-data sample",
+  "source_files": [
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00015-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00079-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00104-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00115-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00119-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00124-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet"
+  ],
+  "rows": 250000,
+  "test_rows": 75000,
+  "target_col": "label",
+  "positive_rate": 0.031232,
+  "numeric_feature_count": 13,
+  "categorical_feature_count": 26,
+  "numeric_features_used": [
+    "integer_feature_1",
+    "integer_feature_2",
+    "integer_feature_3",
+    "integer_feature_4",
+    "integer_feature_5",
+    "integer_feature_6",
+    "integer_feature_7",
+    "integer_feature_8",
+    "integer_feature_9",
+    "integer_feature_10",
+    "integer_feature_11",
+    "integer_feature_12",
+    "integer_feature_13"
+  ],
+  "categorical_features_used": [
+    "categorical_feature_1",
+    "categorical_feature_2",
+    "categorical_feature_3",
+    "categorical_feature_4",
+    "categorical_feature_5",
+    "categorical_feature_6",
+    "categorical_feature_7",
+    "categorical_feature_8",
+    "categorical_feature_9",
+    "categorical_feature_10",
+    "categorical_feature_11",
+    "categorical_feature_12",
+    "categorical_feature_13",
+    "categorical_feature_14",
+    "categorical_feature_15",
+    "categorical_feature_16",
+    "categorical_feature_17",
+    "categorical_feature_18",
+    "categorical_feature_19",
+    "categorical_feature_20",
+    "categorical_feature_21",
+    "categorical_feature_22",
+    "categorical_feature_23",
+    "categorical_feature_24",
+    "categorical_feature_25",
+    "categorical_feature_26"
+  ],
+  "eb_group_col": "categorical_feature_1",
+  "logistic_regression": {
+    "log_loss": 0.13044985183494257,
+    "brier": 0.029595548945100286,
+    "ece": 0.0015713278297538127,
+    "roc_auc": 0.7086663943114613,
+    "pr_auc": 0.08164290987648792
+  },
+  "gbdt": {
+    "log_loss": 0.13148556782485588,
+    "brier": 0.02980435858119941,
+    "ece": 0.004141469619541966,
+    "roc_auc": 0.7002069626101098,
+    "pr_auc": 0.07315255700065285
+  },
+  "gbdt_empirical_bayes": {
+    "log_loss": 0.1337154059296278,
+    "brier": 0.029866405128393506,
+    "ece": 0.0005694217648938824,
+    "roc_auc": 0.6627800466601141,
+    "pr_auc": 0.06544415006672517
+  },
+  "release_decision": {
+    "status": "ITERATE",
+    "checks": {
+      "gbdt_log_loss_not_worse_than_lr": true,
+      "gbdt_auc_not_worse_than_lr": false,
+      "eb_ece_improves_or_brier_stable": true
+    },
+    "reason": "One or more CTR/calibration checks failed; keep as ITERATE."
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "dataset": "Amazon ESCI Shopping Queries local public-data sample",
+  "method": "ABC-style ESCI v2 ablation study",
+  "claim_boundary": "Local public-data validation only. No proprietary Amazon data, production traffic, customer data, or deployment is claimed.",
+  "source_files": {
+    "examples": "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Amazon ESCI Shopping Queries Dataset_LFS\\shopping_queries_dataset\\shopping_queries_dataset_examples.parquet",
+    "products": "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Amazon ESCI Shopping Queries Dataset_LFS\\shopping_queries_dataset\\shopping_queries_dataset_products.parquet"
+  },
+  "rows": 160000,
+  "queries": 7499,
+  "locale": "us",
+  "split": {
+    "train_rows": 95936,
+    "val_rows": 31822,
+    "test_rows": 32242,
+    "train_queries": 4499,
+    "val_queries": 1500,
+    "test_queries": 1500
+  },
+  "baseline_validation": {
+    "ndcg_at_10": 0.6631142210958035,
+    "recall_at_10": 0.578300074655519,
+    "precision_at_10": 0.8480462962962962,
+    "high_rank_irrelevant_rate": 0.1519537037037037,
+    "query_count": 1500
+  },
+  "baseline_test": {
+    "ndcg_at_10": 0.649766041431045,
+    "recall_at_10": 0.5726815616561636,
+    "precision_at_10": 0.8470888888888888,
+    "high_rank_irrelevant_rate": 0.1529111111111111,
+    "query_count": 1500
+  },
+  "validation_selected_parameters": {
+    "alpha_expansion": 0.2,
+    "beta_expected_gain": 0.8,
+    "gamma_relevance": 0.0,
+    "delta_overreach": 0.0
+  },
+  "variants": [
+    {
+      "variant": "baseline_tfidf",
+      "parameters": {
+        "alpha_expansion": 0.0,
+        "beta_expected_gain": 0.0,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.649766041431045,
+        "recall_at_10": 0.5726815616561636,
+        "precision_at_10": 0.8470888888888888,
+        "high_rank_irrelevant_rate": 0.1529111111111111,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.0,
+        "recall_delta": 0.0,
+        "precision_delta": 0.0,
+        "high_rank_irrelevant_delta": 0.0
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "expansion_only",
+      "parameters": {
+        "alpha_expansion": 0.2,
+        "beta_expected_gain": 0.0,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6534434801298881,
+        "recall_at_10": 0.5696469150309266,
+        "precision_at_10": 0.8466222222222223,
+        "high_rank_irrelevant_rate": 0.15337777777777778,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.003677438698843072,
+        "recall_delta": -0.003034646625237003,
+        "precision_delta": -0.00046666666666650425,
+        "high_rank_irrelevant_delta": 0.0004666666666666708
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": false,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": false
+    },
+    {
+      "variant": "expected_gain_only",
+      "parameters": {
+        "alpha_expansion": 0.0,
+        "beta_expected_gain": 0.8,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6752284547966575,
+        "recall_at_10": 0.5758186400057398,
+        "precision_at_10": 0.8504888888888888,
+        "high_rank_irrelevant_rate": 0.1495111111111111,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.025462413365612502,
+        "recall_delta": 0.0031370783495762167,
+        "precision_delta": 0.0034000000000000696,
+        "high_rank_irrelevant_delta": -0.003400000000000014
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "relevance_only",
+      "parameters": {
+        "alpha_expansion": 0.0,
+        "beta_expected_gain": 0.0,
+        "gamma_relevance": 0.2,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6563410683020462,
+        "recall_at_10": 0.5725823430852031,
+        "precision_at_10": 0.8477555555555555,
+        "high_rank_irrelevant_rate": 0.15224444444444446,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.006575026871001199,
+        "recall_delta": -9.921857096051312e-05,
+        "precision_delta": 0.0006666666666667043,
+        "high_rank_irrelevant_delta": -0.0006666666666666488
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "overreach_only",
+      "parameters": {
+        "alpha_expansion": 0.0,
+        "beta_expected_gain": 0.0,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.35
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6578193327539107,
+        "recall_at_10": 0.5735122999126041,
+        "precision_at_10": 0.847288888888889,
+        "high_rank_irrelevant_rate": 0.15271111111111113,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.008053291322865697,
+        "recall_delta": 0.000830738256440533,
+        "precision_delta": 0.00020000000000020002,
+        "high_rank_irrelevant_delta": -0.00019999999999997797
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "expansion_plus_expected_gain",
+      "parameters": {
+        "alpha_expansion": 0.2,
+        "beta_expected_gain": 0.8,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6760586452093351,
+        "recall_at_10": 0.5742123436684529,
+        "precision_at_10": 0.8502222222222223,
+        "high_rank_irrelevant_rate": 0.1497777777777778,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.026292603778290125,
+        "recall_delta": 0.001530782012289289,
+        "precision_delta": 0.0031333333333335434,
+        "high_rank_irrelevant_delta": -0.0031333333333333213
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "expansion_plus_expected_gain_forced_overreach_0_20",
+      "parameters": {
+        "alpha_expansion": 0.2,
+        "beta_expected_gain": 0.8,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.2
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.676192935391905,
+        "recall_at_10": 0.5739332075566556,
+        "precision_at_10": 0.8494222222222222,
+        "high_rank_irrelevant_rate": 0.15057777777777778,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.026426893960859954,
+        "recall_delta": 0.0012516459004919822,
+        "precision_delta": 0.0023333333333334094,
+        "high_rank_irrelevant_delta": -0.002333333333333326
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "expansion_plus_expected_gain_forced_overreach_0_50",
+      "parameters": {
+        "alpha_expansion": 0.2,
+        "beta_expected_gain": 0.8,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.5
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.675352400427671,
+        "recall_at_10": 0.5748816830619212,
+        "precision_at_10": 0.8502222222222222,
+        "high_rank_irrelevant_rate": 0.14977777777777776,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.02558635899662598,
+        "recall_delta": 0.002200121405757649,
+        "precision_delta": 0.0031333333333334323,
+        "high_rank_irrelevant_delta": -0.003133333333333349
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    },
+    {
+      "variant": "validation_selected_abc",
+      "parameters": {
+        "alpha_expansion": 0.2,
+        "beta_expected_gain": 0.8,
+        "gamma_relevance": 0.0,
+        "delta_overreach": 0.0
+      },
+      "test_metrics": {
+        "ndcg_at_10": 0.6760586452093351,
+        "recall_at_10": 0.5742123436684529,
+        "precision_at_10": 0.8502222222222223,
+        "high_rank_irrelevant_rate": 0.1497777777777778,
+        "query_count": 1500
+      },
+      "delta_vs_baseline": {
+        "ndcg_delta": 0.026292603778290125,
+        "recall_delta": 0.001530782012289289,
+        "precision_delta": 0.0031333333333335434,
+        "high_rank_irrelevant_delta": -0.0031333333333333213
+      },
+      "release_checks_vs_baseline": {
+        "ndcg_not_worse": true,
+        "recall_not_worse": true,
+        "irrelevant_not_worse": true
+      },
+      "passes_all_guardrails": true
+    }
+  ],
+  "best_variant_by_guardrail_score": {
+    "variant": "expansion_plus_expected_gain",
+    "parameters": {
+      "alpha_expansion": 0.2,
+      "beta_expected_gain": 0.8,
+      "gamma_relevance": 0.0,
+      "delta_overreach": 0.0
+    },
+    "test_metrics": {
+      "ndcg_at_10": 0.6760586452093351,
+      "recall_at_10": 0.5742123436684529,
+      "precision_at_10": 0.8502222222222223,
+      "high_rank_irrelevant_rate": 0.1497777777777778,
+      "query_count": 1500
+    },
+    "delta_vs_baseline": {
+      "ndcg_delta": 0.026292603778290125,
+      "recall_delta": 0.001530782012289289,
+      "precision_delta": 0.0031333333333335434,
+      "high_rank_irrelevant_delta": -0.0031333333333333213
+    },
+    "release_checks_vs_baseline": {
+      "ndcg_not_worse": true,
+      "recall_not_worse": true,
+      "irrelevant_not_worse": true
+    },
+    "passes_all_guardrails": true
+  },
+  "interpretation": {
+    "primary_question": "Which ABC component drives the improvement: expansion, expected-gain scoring, relevance scoring, or explicit overreach penalty?",
+    "notes": [
+      "If expected_gain_only or expansion_plus_expected_gain is strongest, the observed ABC v2 gain is mainly from learned expected-gain reranking.",
+      "If forced-overreach variants reduce high-rank irrelevant but hurt NDCG or recall, explicit overreach penalty is useful as a guardrail but not the promoted scoring component.",
+      "If validation_selected_abc remains best, the original ABC v2 selection is stable under ablation."
+    ]
+  },
+  "runtime_seconds": 4568.981444120407
+}

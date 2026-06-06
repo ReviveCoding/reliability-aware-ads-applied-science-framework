@@ -1,0 +1,32 @@
+{
+  "dataset": "Amazon ESCI Shopping Queries local public-data sample",
+  "rows": 120000,
+  "queries": 5273,
+  "label_distribution": {
+    "0": 20778,
+    "1": 6313,
+    "2": 42085,
+    "3": 50824
+  },
+  "tfidf_baseline": {
+    "ndcg_at_10": 0.7539334608935288,
+    "recall_at_10": 0.5468361105179388,
+    "precision_at_10": 0.8615494026171061,
+    "high_rank_irrelevant_rate": 0.14013844111511473
+  },
+  "bias_corrected_reranker": {
+    "ndcg_at_10": 0.7541430157510265,
+    "recall_at_10": 0.5424159058290577,
+    "precision_at_10": 0.8574720273089322,
+    "high_rank_irrelevant_rate": 0.14436753271382516
+  },
+  "release_decision": {
+    "status": "ITERATE",
+    "checks": {
+      "ndcg_improved": true,
+      "recall_not_worse": false,
+      "high_rank_irrelevant_not_worse": false
+    },
+    "reason": "Reranker did not beat all promotion checks; keep as ITERATE."
+  }
+}

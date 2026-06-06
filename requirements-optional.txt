@@ -1,0 +1,14 @@
+torch
+fastapi
+pydantic
+uvicorn
+pyyaml
+lightgbm
+xgboost
+duckdb
+polars
+obp
+sentence-transformers
+pyarrow
+torchvision
+torchaudio

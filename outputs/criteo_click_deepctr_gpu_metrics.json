@@ -1,0 +1,146 @@
+{
+  "dataset": "Criteo Click Logs local public-data sample",
+  "source_files": [
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00015-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00079-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00104-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00115-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00119-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00124-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet"
+  ],
+  "rows": 250000,
+  "target_col": "label",
+  "positive_rate": 0.031232,
+  "numeric_feature_count": 13,
+  "categorical_feature_count": 26,
+  "hash_size": 60000,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 4090 Laptop GPU",
+  "torch_version": "2.12.0+cu126",
+  "torch_cuda_build": "12.6",
+  "train_rows": 148750,
+  "val_rows": 26250,
+  "test_rows": 75000,
+  "baseline_lr_from_previous_public_run": {
+    "log_loss": 0.13044985183494257,
+    "brier": 0.029595548945100286,
+    "ece": 0.0015713278297538127,
+    "roc_auc": 0.7086663943114613,
+    "pr_auc": 0.08164290987648792
+  },
+  "runs": [
+    {
+      "config": {
+        "name": "embedding_mlp_medium",
+        "hash_size": 60000,
+        "emb_dim": 16,
+        "hidden": [
+          512,
+          256,
+          128
+        ],
+        "dropout": 0.15,
+        "lr": 0.0008,
+        "weight_decay": 1e-05,
+        "batch_size": 8192,
+        "epochs": 6,
+        "amp": true
+      },
+      "best_val_auc": 0.6555845314253379,
+      "temperature": 0.8310690522193909,
+      "raw_metrics": {
+        "log_loss": 0.13861193297854493,
+        "brier": 0.03021507578123573,
+        "ece": 0.022128958263768716,
+        "roc_auc": 0.6901132086852437,
+        "pr_auc": 0.07213083119259982
+      },
+      "calibrated_metrics": {
+        "log_loss": 0.1323254055453186,
+        "brier": 0.029764835227142874,
+        "ece": 0.00014414195539219854,
+        "roc_auc": 0.6901132086852437,
+        "pr_auc": 0.07213083119259982
+      },
+      "elapsed_seconds": 36.581639766693115
+    },
+    {
+      "config": {
+        "name": "embedding_mlp_compact",
+        "hash_size": 60000,
+        "emb_dim": 12,
+        "hidden": [
+          256,
+          128,
+          64
+        ],
+        "dropout": 0.1,
+        "lr": 0.001,
+        "weight_decay": 2e-05,
+        "batch_size": 8192,
+        "epochs": 6,
+        "amp": true
+      },
+      "best_val_auc": 0.6501982486596396,
+      "temperature": 0.6731464862823486,
+      "raw_metrics": {
+        "log_loss": 0.16242498750389986,
+        "brier": 0.033194453824515954,
+        "ece": 0.05709838356457594,
+        "roc_auc": 0.6556522633709548,
+        "pr_auc": 0.06058797646023569
+      },
+      "calibrated_metrics": {
+        "log_loss": 0.13506637198348215,
+        "brier": 0.02998337615250282,
+        "ece": 0.0005150414742586706,
+        "roc_auc": 0.6556522633709547,
+        "pr_auc": 0.06058797646023569
+      },
+      "elapsed_seconds": 38.31237077713013
+    }
+  ],
+  "selected_model": {
+    "config": {
+      "name": "embedding_mlp_medium",
+      "hash_size": 60000,
+      "emb_dim": 16,
+      "hidden": [
+        512,
+        256,
+        128
+      ],
+      "dropout": 0.15,
+      "lr": 0.0008,
+      "weight_decay": 1e-05,
+      "batch_size": 8192,
+      "epochs": 6,
+      "amp": true
+    },
+    "temperature": 0.8310690522193909,
+    "raw_metrics": {
+      "log_loss": 0.13861193297854493,
+      "brier": 0.03021507578123573,
+      "ece": 0.022128958263768716,
+      "roc_auc": 0.6901132086852437,
+      "pr_auc": 0.07213083119259982
+    },
+    "calibrated_metrics": {
+      "log_loss": 0.1323254055453186,
+      "brier": 0.029764835227142874,
+      "ece": 0.00014414195539219854,
+      "roc_auc": 0.6901132086852437,
+      "pr_auc": 0.07213083119259982
+    }
+  },
+  "release_decision": {
+    "status": "ITERATE",
+    "checks": {
+      "deep_auc_beats_lr_by_0_002": false,
+      "deep_pr_auc_not_worse_than_lr": false,
+      "deep_log_loss_not_worse_than_lr": false,
+      "calibration_improves_raw_deep_ece": true
+    },
+    "reason": "GPU DeepCTR model trained successfully but did not pass all LR comparison/calibration promotion checks."
+  }
+}

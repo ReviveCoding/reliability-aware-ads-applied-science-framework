@@ -1,0 +1,36 @@
+{
+  "logged_policy_value": 0.0042,
+  "ips": {
+    "value": 0.0024597434758131076,
+    "ci_low": 0.0010356569859871546,
+    "ci_high": 0.004199813931838868
+  },
+  "snips": {
+    "value": 0.0024353004010793785,
+    "ci_low": 0.0010253654082856933,
+    "ci_high": 0.004158079349833418
+  },
+  "doubly_robust": {
+    "value": 0.0024957770082094173,
+    "ci_low": 0.0011252045603265017,
+    "ci_high": 0.004317053219629562
+  },
+  "diagnostics": {
+    "effective_sample_size": 342.5569352840535,
+    "max_importance_weight": 277.77777777777777,
+    "mean_importance_weight": 1.0100369854671298,
+    "low_candidate_support_rate": 0.0
+  },
+  "dataset": "Open Bandit local public-data sample",
+  "source_file": "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\zr-obp-master_Open Bandit Dataset\\obd\\bts\\all\\all.csv",
+  "rows": 10000,
+  "release_decision": {
+    "status": "ITERATE",
+    "checks": {
+      "dr_lower_bound_beats_logged_policy": false,
+      "effective_sample_size_ok": false,
+      "importance_weight_not_extreme": false
+    },
+    "reason": "Candidate policy remains ITERATE because value or support diagnostics did not pass all promotion checks."
+  }
+}

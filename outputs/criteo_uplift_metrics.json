@@ -1,0 +1,27 @@
+{
+  "dataset": "Criteo Uplift v2.1 local public-data sample",
+  "rows_loaded": 240000,
+  "test_rows": 84000,
+  "feature_count": 12,
+  "target_col": "conversion",
+  "treatment_counts": {
+    "0": 120000,
+    "1": 120000
+  },
+  "overall_target_rate": 0.004166666666666667,
+  "target_rate_by_treatment": {
+    "0": 0.0033166666666666665,
+    "1": 0.005016666666666667
+  },
+  "uplift_model": {
+    "auuc": 31.323246684676043,
+    "qini_proxy": 1.3236038275331832,
+    "uplift_at_20pct": 0.003468105315009738,
+    "negative_uplift_rate": 0.8278333333333333
+  },
+  "pcvr_baseline": {
+    "auuc": 54.45230542291612,
+    "qini_proxy": 24.452662565773274,
+    "uplift_at_20pct": 0.006609127662921918
+  }
+}

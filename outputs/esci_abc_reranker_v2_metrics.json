@@ -1,0 +1,71 @@
+{
+  "dataset": "Amazon ESCI Shopping Queries local public-data sample",
+  "method": "ABC-style candidate expansion and overreach correction reranker",
+  "claim_boundary": "Local public-data validation only. No proprietary Amazon data, production traffic, customer data, or deployment is claimed.",
+  "source_files": {
+    "examples": "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Amazon ESCI Shopping Queries Dataset_LFS\\shopping_queries_dataset\\shopping_queries_dataset_examples.parquet",
+    "products": "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Amazon ESCI Shopping Queries Dataset_LFS\\shopping_queries_dataset\\shopping_queries_dataset_products.parquet"
+  },
+  "rows": 160000,
+  "queries": 7499,
+  "locale": "us",
+  "label_distribution": {
+    "E": 65947,
+    "S": 56477,
+    "I": 30717,
+    "C": 6859
+  },
+  "split": {
+    "train_rows": 95936,
+    "val_rows": 31822,
+    "test_rows": 32242,
+    "train_queries": 4499,
+    "val_queries": 1500,
+    "test_queries": 1500
+  },
+  "baseline_validation": {
+    "ndcg_at_10": 0.6631142210958035,
+    "recall_at_10": 0.578300074655519,
+    "precision_at_10": 0.8480462962962962,
+    "high_rank_irrelevant_rate": 0.1519537037037037,
+    "query_count": 1500
+  },
+  "abc_validation": {
+    "ndcg_at_10": 0.6851141689539456,
+    "recall_at_10": 0.5848945324957975,
+    "precision_at_10": 0.8532462962962963,
+    "high_rank_irrelevant_rate": 0.14675370370370372,
+    "query_count": 1500
+  },
+  "baseline_test": {
+    "ndcg_at_10": 0.649766041431045,
+    "recall_at_10": 0.5726815616561636,
+    "precision_at_10": 0.8470888888888888,
+    "high_rank_irrelevant_rate": 0.1529111111111111,
+    "query_count": 1500
+  },
+  "abc_test": {
+    "ndcg_at_10": 0.6760586452093351,
+    "recall_at_10": 0.5742123436684529,
+    "precision_at_10": 0.8502222222222223,
+    "high_rank_irrelevant_rate": 0.1497777777777778,
+    "query_count": 1500
+  },
+  "selected_parameters": {
+    "alpha_expansion": 0.2,
+    "beta_expected_gain": 0.8,
+    "gamma_relevance": 0.0,
+    "delta_overreach": 0.0
+  },
+  "release_decision": {
+    "status": "PASS",
+    "checks": {
+      "ndcg_not_worse_than_baseline": true,
+      "recall_not_worse_than_baseline": true,
+      "high_rank_irrelevant_not_worse": true,
+      "abc_has_expansion_or_overreach_control": true
+    },
+    "reason": "ABC-style reranker passed NDCG, recall, and high-rank irrelevant guardrails."
+  },
+  "runtime_seconds": 6448.42608165741
+}

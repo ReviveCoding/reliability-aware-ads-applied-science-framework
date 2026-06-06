@@ -1,0 +1,183 @@
+{
+  "dataset": "Criteo Click Logs local public-data sample",
+  "source_files": [
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00015-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00079-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00104-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00115-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00119-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00124-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet"
+  ],
+  "rows": 250000,
+  "target_col": "label",
+  "positive_rate": 0.031232,
+  "numeric_feature_count": 13,
+  "categorical_feature_count": 26,
+  "hash_size": 120000,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 4090 Laptop GPU",
+  "torch_version": "2.12.0+cu126",
+  "torch_cuda_build": "12.6",
+  "train_rows": 148750,
+  "val_rows": 26250,
+  "test_rows": 75000,
+  "same_split_lr_baseline": {
+    "elapsed_seconds": 27.734822034835815,
+    "val_metrics": {
+      "log_loss": 0.13150433186764535,
+      "brier": 0.029630265075158934,
+      "ece": 0.003775179389996176,
+      "roc_auc": 0.6980516578268416,
+      "pr_auc": 0.08638201045765154
+    },
+    "test_metrics": {
+      "log_loss": 0.1293993536666876,
+      "brier": 0.029543605163491485,
+      "ece": 0.0035088425819993175,
+      "roc_auc": 0.7205277822172589,
+      "pr_auc": 0.08757380384923485
+    }
+  },
+  "deepfm_runs": [
+    {
+      "config": {
+        "name": "deepfm_medium_unweighted",
+        "hash_size": 120000,
+        "emb_dim": 16,
+        "hidden": [
+          512,
+          256,
+          128
+        ],
+        "dropout": 0.2,
+        "lr": 0.0008,
+        "weight_decay": 1e-05,
+        "batch_size": 4096,
+        "epochs": 20,
+        "patience": 6,
+        "pos_weight": null,
+        "amp": true
+      },
+      "best_epoch": 14,
+      "best_val_auc": 0.6098924114978468,
+      "temperature": 1.9106907844543457,
+      "elapsed_seconds": 132.926926612854,
+      "raw_test_metrics": {
+        "log_loss": 0.22653089632273146,
+        "brier": 0.03856383465804619,
+        "ece": 0.03706422208151006,
+        "roc_auc": 0.6197350817708522,
+        "pr_auc": 0.050871721018007694
+      },
+      "calibrated_test_metrics": {
+        "log_loss": 0.174941548779456,
+        "brier": 0.04015433448871911,
+        "ece": 0.03304477808289216,
+        "roc_auc": 0.6196707824279484,
+        "pr_auc": 0.0508846999990245
+      }
+    },
+    {
+      "config": {
+        "name": "deepfm_medium_weighted",
+        "hash_size": 120000,
+        "emb_dim": 16,
+        "hidden": [
+          512,
+          256,
+          128
+        ],
+        "dropout": 0.15,
+        "lr": 0.0006,
+        "weight_decay": 1e-05,
+        "batch_size": 4096,
+        "epochs": 20,
+        "patience": 6,
+        "pos_weight": 3.0,
+        "amp": true
+      },
+      "best_epoch": 12,
+      "best_val_auc": 0.5966346402846647,
+      "temperature": 1.6548534631729126,
+      "elapsed_seconds": 122.50736594200134,
+      "raw_test_metrics": {
+        "log_loss": 0.25926097495207195,
+        "brier": 0.058393033939705956,
+        "ece": 0.06438018635790871,
+        "roc_auc": 0.6117216700145146,
+        "pr_auc": 0.04843977670774885
+      },
+      "calibrated_test_metrics": {
+        "log_loss": 0.22737729632265646,
+        "brier": 0.05948736579645436,
+        "ece": 0.07580754454544956,
+        "roc_auc": 0.6117120969550994,
+        "pr_auc": 0.048441533758473966
+      }
+    }
+  ],
+  "selected_deepfm": {
+    "config": {
+      "name": "deepfm_medium_unweighted",
+      "hash_size": 120000,
+      "emb_dim": 16,
+      "hidden": [
+        512,
+        256,
+        128
+      ],
+      "dropout": 0.2,
+      "lr": 0.0008,
+      "weight_decay": 1e-05,
+      "batch_size": 4096,
+      "epochs": 20,
+      "patience": 6,
+      "pos_weight": null,
+      "amp": true
+    },
+    "best_epoch": 14,
+    "temperature": 1.9106907844543457,
+    "raw_test_metrics": {
+      "log_loss": 0.22653089632273146,
+      "brier": 0.03856383465804619,
+      "ece": 0.03706422208151006,
+      "roc_auc": 0.6197350817708522,
+      "pr_auc": 0.050871721018007694
+    },
+    "calibrated_test_metrics": {
+      "log_loss": 0.174941548779456,
+      "brier": 0.04015433448871911,
+      "ece": 0.03304477808289216,
+      "roc_auc": 0.6196707824279484,
+      "pr_auc": 0.0508846999990245
+    }
+  },
+  "selected_lr_deep_ensemble": {
+    "alpha_deep": 0.05,
+    "val_metrics": {
+      "log_loss": 0.130954084162134,
+      "brier": 0.029603199669229065,
+      "ece": 0.0018343950142079932,
+      "roc_auc": 0.7014862415238386,
+      "pr_auc": 0.08743965011291716
+    },
+    "test_metrics": {
+      "log_loss": 0.12916709604960983,
+      "brier": 0.029534284391458242,
+      "ece": 0.002120649363918434,
+      "roc_auc": 0.721644151387245,
+      "pr_auc": 0.08800798140614195
+    },
+    "validation_selection_score": 0.712334747587605
+  },
+  "release_decision": {
+    "status": "PASS",
+    "checks": {
+      "ensemble_auc_not_worse_than_lr": true,
+      "ensemble_pr_auc_not_worse_than_lr": true,
+      "ensemble_ece_improves_lr": true,
+      "gpu_deep_component_trained": true
+    },
+    "reason": "GPU DeepFM residual ensemble improved calibration while preserving LR ranking metrics."
+  }
+}

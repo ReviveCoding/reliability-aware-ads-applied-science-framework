@@ -1,0 +1,226 @@
+{
+  "dataset": "Criteo Click Logs local public-data sample",
+  "method": "Safe OOF LR-offset GPU residual logit bias correction",
+  "source_files": [
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00015-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00079-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00104-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00115-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00119-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet",
+    "C:\\Users\\bjw-0\\Downloads\\Mini Project_Data\\Criteo 1TB click logs (Samples)\\data\\day=2015-02-15\\part-00124-99c339d5-fbac-4110-9dcf-75453a61a5c1.c000.snappy.parquet"
+  ],
+  "rows": 250000,
+  "target_col": "label",
+  "positive_rate": 0.031232,
+  "numeric_feature_count": 13,
+  "categorical_feature_count": 26,
+  "hash_size": 120000,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 4090 Laptop GPU",
+  "torch_version": "2.12.0+cu126",
+  "torch_cuda_build": "12.6",
+  "train_rows": 148750,
+  "val_rows": 26250,
+  "test_rows": 75000,
+  "oof_folds": 3,
+  "same_split_lr_baseline": {
+    "elapsed_seconds": 196.4399926662445,
+    "oof_train_metrics": {
+      "log_loss": 0.12966630449898003,
+      "brier": 0.029528885271783236,
+      "ece": 0.00396855966661718,
+      "roc_auc": 0.7184211275020463,
+      "pr_auc": 0.09016079673269103
+    },
+    "train_final_metrics": {
+      "log_loss": 0.12272524660008596,
+      "brier": 0.02880828348570572,
+      "ece": 0.00014637784887926104,
+      "roc_auc": 0.7731544445981628,
+      "pr_auc": 0.12476549429769968
+    },
+    "val_metrics": {
+      "log_loss": 0.13150415641532762,
+      "brier": 0.029630191461967686,
+      "ece": 0.0037755932841168887,
+      "roc_auc": 0.698053719919818,
+      "pr_auc": 0.08639053271326165
+    },
+    "test_metrics": {
+      "log_loss": 0.12939946618339213,
+      "brier": 0.02954358991944134,
+      "ece": 0.0035091918979077382,
+      "roc_auc": 0.7205262484121591,
+      "pr_auc": 0.08757506612476876
+    }
+  },
+  "residual_runs": [
+    {
+      "config": {
+        "name": "safe_residual_tiny",
+        "hash_size": 120000,
+        "emb_dim": 8,
+        "hidden": [
+          128,
+          64
+        ],
+        "dropout": 0.15,
+        "lr": 0.0004,
+        "weight_decay": 5e-05,
+        "delta_l2": 0.05,
+        "delta_clip": 0.2,
+        "batch_size": 4096,
+        "epochs": 14,
+        "patience": 4,
+        "amp": true
+      },
+      "best_epoch": 11,
+      "best_val_score": 0.7150477710097225,
+      "elapsed_seconds": 211.70402455329895,
+      "final_history_row": {
+        "epoch": 14,
+        "train_loss": 0.12924686291057522,
+        "mean_abs_delta_val": 0.03854580596089363,
+        "val_log_loss": 0.13147849755874164,
+        "val_brier": 0.029634212024641688,
+        "val_ece": 0.0036141513074437136,
+        "val_roc_auc": 0.698703590919118,
+        "val_pr_auc": 0.08633744008810286,
+        "val_selection_score": 0.7150224672908723
+      }
+    },
+    {
+      "config": {
+        "name": "safe_residual_small",
+        "hash_size": 120000,
+        "emb_dim": 12,
+        "hidden": [
+          192,
+          96
+        ],
+        "dropout": 0.2,
+        "lr": 0.0003,
+        "weight_decay": 5e-05,
+        "delta_l2": 0.08,
+        "delta_clip": 0.15,
+        "batch_size": 4096,
+        "epochs": 14,
+        "patience": 4,
+        "amp": true
+      },
+      "best_epoch": 1,
+      "best_val_score": 0.7145237912301673,
+      "elapsed_seconds": 75.47517848014832,
+      "final_history_row": {
+        "epoch": 5,
+        "train_loss": 0.12961112313991835,
+        "mean_abs_delta_val": 0.013575873337686062,
+        "val_log_loss": 0.13150653532795115,
+        "val_brier": 0.02963243409537941,
+        "val_ece": 0.0037998570097271464,
+        "val_roc_auc": 0.6980553264341138,
+        "val_pr_auc": 0.08614877895234611,
+        "val_selection_score": 0.7143805437770355
+      }
+    }
+  ],
+  "selected_residual_run": {
+    "config": {
+      "name": "safe_residual_tiny",
+      "hash_size": 120000,
+      "emb_dim": 8,
+      "hidden": [
+        128,
+        64
+      ],
+      "dropout": 0.15,
+      "lr": 0.0004,
+      "weight_decay": 5e-05,
+      "delta_l2": 0.05,
+      "delta_clip": 0.2,
+      "batch_size": 4096,
+      "epochs": 14,
+      "patience": 4,
+      "amp": true
+    },
+    "best_epoch": 11,
+    "best_val_score": 0.7150477710097225,
+    "mean_abs_val_delta": 0.037333857268095016,
+    "mean_abs_test_delta": 0.03725786507129669
+  },
+  "selected_lambda_temperature_candidate": {
+    "lambda": 0.35,
+    "temperature": 1.0333850383758545,
+    "used_temperature": true,
+    "constraint_violations": 0,
+    "val_metrics": {
+      "log_loss": 0.13132101415009104,
+      "brier": 0.02965652310463906,
+      "ece": 0.0019780320747763143,
+      "roc_auc": 0.6983348838993698,
+      "pr_auc": 0.0863340190815774
+    },
+    "test_metrics": {
+      "log_loss": 0.1293115136202094,
+      "brier": 0.02956589061264065,
+      "ece": 0.002288143587416676,
+      "roc_auc": 0.7206917465700768,
+      "pr_auc": 0.08772190203774048
+    },
+    "val_raw_metrics": {
+      "log_loss": 0.1314875896794881,
+      "brier": 0.029630779633832476,
+      "ece": 0.0036676129944603468,
+      "roc_auc": 0.6983348838993698,
+      "pr_auc": 0.0863340190815774
+    },
+    "test_raw_metrics": {
+      "log_loss": 0.12938822833489652,
+      "brier": 0.029543875356173886,
+      "ece": 0.0035428685498611074,
+      "roc_auc": 0.7206917465700768,
+      "pr_auc": 0.08772190203774048
+    },
+    "val_temperature_metrics": {
+      "log_loss": 0.13132101415009104,
+      "brier": 0.02965652310463906,
+      "ece": 0.0019780320747763143,
+      "roc_auc": 0.6983348838993698,
+      "pr_auc": 0.0863340190815774
+    },
+    "test_temperature_metrics": {
+      "log_loss": 0.1293115136202094,
+      "brier": 0.02956589061264065,
+      "ece": 0.002288143587416676,
+      "roc_auc": 0.7206917465700768,
+      "pr_auc": 0.08772190203774048
+    },
+    "validation_selection_score": 0.7150398874026627
+  },
+  "deepfm_v2_champion_test_metrics": {
+    "log_loss": 0.12916709604960983,
+    "brier": 0.029534284391458242,
+    "ece": 0.002120649363918434,
+    "roc_auc": 0.721644151387245,
+    "pr_auc": 0.08800798140614195
+  },
+  "deepfm_v2_metric_match_or_beat_count": 0,
+  "release_decision": {
+    "lr_gate_status": "PASS",
+    "lr_gate_checks": {
+      "residual_auc_not_worse_than_lr": true,
+      "residual_pr_auc_not_worse_than_lr": true,
+      "residual_log_loss_not_worse_than_lr": true,
+      "residual_ece_improves_lr": true,
+      "gpu_residual_component_trained": true
+    },
+    "champion_upgrade_status": "ITERATE",
+    "champion_upgrade_checks": {
+      "matches_or_beats_deepfm_v2_on_at_least_3_of_5_metrics": false,
+      "log_loss_not_worse_than_deepfm_v2": false,
+      "ece_not_worse_than_deepfm_v2": false
+    },
+    "overall_status": "PASS_LR_BASELINE",
+    "reason": "Safe residual-bias correction passed the LR baseline gate but did not beat the current DeepFM v2 champion."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "overall_status": "PUBLIC_VALIDATION_SUMMARY_UPDATED",
+  "claim_boundary": "Public-data validation uses local public/proxy datasets and synthetic fallback only. No proprietary Amazon Ads data, advertiser data, customer data, production traffic, or deployment is claimed.",
+  "highlights": [
+    "GPU DeepFM v2 is the current CTR champion: a validation-selected LR+DeepFM ensemble improved ranking and calibration over the same-split LR baseline.",
+    "Residual-bias CTR v2 validates the paper-inspired bias-correction specialty against LR, but DeepFM v2 remains the CTR champion.",
+    "ABC-style ESCI reranker v2 is the strongest specialty result: it passed NDCG, recall, precision, and irrelevant-rate guardrails.",
+    "Ablation shows learned expected-gain scoring is the primary driver; expansion alone is unsafe because it improves NDCG but hurts recall and irrelevant-rate guardrails."
+  ],
+  "available_outputs_used": {
+    "public_validation_summary": true,
+    "deepfm_v2": true,
+    "autoint": true,
+    "residual_bias_v2": true,
+    "esci_abc_v2": true,
+    "esci_abc_ablation": true
+  }
+}
