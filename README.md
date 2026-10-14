@@ -83,7 +83,6 @@ The repository is structured to support public datasets when available:
 
 Smoke mode does not require external data.
 
-
 ## v3 structural cleanup
 
 The project now uses a cleaner, less redundant pipeline architecture:
@@ -145,14 +144,7 @@ The ablation strengthens the ABC-style ESCI result by separating the components.
 - The promoted `expansion_plus_expected_gain` variant preserved all guardrails and achieved the best guardrail score.
 - Explicit overreach penalty was evaluated, but not selected as the promoted scoring term; it is better framed as a release guardrail rather than the main performance driver.
 
-## Resume-safe claim language
-
-- Built a local-runnable ads applied-science framework covering CTR prediction, calibration, product-query relevance, uplift, OPE, and release-gated model validation on public/proxy datasets.
-- Added GPU-trained DeepFM and AutoInt CTR experiments; promoted a validation-selected LR+DeepFM ensemble as the CTR champion under ranking and calibration gates.
-- Adapted paper-inspired residual-bias correction to CTR; passed the LR baseline gate by improving ROC-AUC, PR-AUC, log loss, and ECE, while preserving DeepFM v2 as champion.
-- Adapted ABC-style expansion/scoring to Amazon ESCI product-query ranking; ablation showed learned expected-gain scoring was the primary driver and expansion alone was unsafe.
-
-## Do-not-overclaim boundaries
+## Limitations and interpretation
 
 - Do not claim production Amazon Ads deployment.
 - Do not claim all public-data challengers beat all baselines.
