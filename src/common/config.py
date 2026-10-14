@@ -18,17 +18,17 @@ DEFAULT_CONFIG = {
 }
 
 def _coerce(value):
-    v = str(value).strip().strip('"').strip("'")
-    if v.lower() in {"true", "false"}:
-        return v.lower() == "true"
+    text = str(value).strip().strip('"').strip("'")
+    lowercase = text.lower()
+    if lowercase in {"true", "false"}:
+        return lowercase == "true"
     try:
-        return float(v) if "." in v else int(v)
+        return float(text) if "." in text else int(text)
     except ValueError:
-        return v
+        return text
 
 def load_config(path=None, overrides=None):
-    cfg = dict(DEFAULT_CONFIG)
-    cfg["release"] = dict(DEFAULT_CONFIG["release"])
+    cfg = {**DEFAULT_CONFIG, "release": dict(DEFAULT_CONFIG["release"])}
     if path:
         p = Path(path)
         if p.exists():
@@ -39,7 +39,8 @@ def load_config(path=None, overrides=None):
                     continue
                 if not line.startswith(" ") and ":" in line:
                     k, val = line.split(":", 1)
-                    k = k.strip(); val = val.strip()
+                    k = k.strip()
+                    val = val.strip()
                     if val == "":
                         section = k
                         cfg.setdefault(k, {})
