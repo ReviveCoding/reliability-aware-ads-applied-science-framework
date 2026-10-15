@@ -19,7 +19,8 @@ jobs:
       - name: Python syntax
         run: python -m compileall -q scripts src tests
       - name: Unit and pipeline tests
-        run: python -m pytest -q tests      - name: Full synthetic end-to-end smoke
+        run: python -m pytest -q tests
+      - name: Full synthetic end-to-end smoke
         run: python scripts/run_pipeline.py --mode smoke --track all
       - name: Validate generated smoke decision
         run: |
