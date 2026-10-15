@@ -20,3 +20,20 @@ jobs:
         run: python -m compileall -q scripts src tests
       - name: Unit and pipeline tests
         run: python -m pytest -q tests
+      - name: Full synthetic end-to-end smoke
+        run: python scripts/run_pipeline.py --mode smoke --track all
+      - name: Validate generated smoke decision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          metrics_path = Path("outputs/metrics_summary.json")
+          decision_path = Path("outputs/release_decision.json")
+          assert metrics_path.is_file(), "Metrics summary not generated"
+          assert decision_path.is_file(), "Release decision not generated"
+          decision = json.loads(decision_path.read_text(encoding="utf-8"))
+          assert decision["status"] in {"PASS", "ITERATE", "BLOCK"}
+          assert decision["reasons"], "Release decision has no justification"
+          assert isinstance(decision["final_policy_snapshot"], dict)
+          PY

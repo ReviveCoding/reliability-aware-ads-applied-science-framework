@@ -36,6 +36,14 @@ python scripts/run_pipeline.py --mode smoke --track all
 python -m pytest tests -q
 ```
 
+## Release qualification safeguards
+
+The offline PASS decision requires finite, valid empirical-Bayes calibration ECE,
+worst-slice ECE with sample support, and both relevance and long-tail metrics for
+the selected reliability policy. Missing or invalid evidence results in BLOCK,
+rather than being interpreted as passing. Synthetic smoke qualification does not
+constitute production release approval.
+
 ## Main generated artifacts
 
 After running smoke mode:
