@@ -4,8 +4,9 @@ import pandas as pd
 def load_open_bandit(path, nrows=None):
     """Load a simple Open Bandit-style CSV into the OPE schema.
 
-    Required normalized columns: action, reward, pscore. If the candidate policy
-    probability is absent, a conservative fallback is created for smoke-style tests.
+    Required normalized columns: action, reward, pscore, candidate_prob.
+    Full candidate_prob_action_<id> columns and x1/x2 are needed for generic DR.
+    This is a normalized CSV adapter, not a raw OBD policy reconstruction.
     """
     df = pd.read_csv(path, nrows=nrows)
     lower = {c.lower(): c for c in df.columns}
@@ -17,11 +18,15 @@ def load_open_bandit(path, nrows=None):
     out = pd.DataFrame({
         "action": df[action_col],
         "reward": df[reward_col].astype(float),
-        "pscore": df[pscore_col].astype(float).clip(1e-6, 1.0),
+        "pscore": df[pscore_col].astype(float),
     })
     if lower.get("candidate_prob"):
-        out["candidate_prob"] = df[lower.get("candidate_prob")].astype(float).clip(0, 1)
+        out["candidate_prob"] = df[lower.get("candidate_prob")].astype(float)
     else:
-        # Conservative default: small probability for observed action under candidate policy.
-        out["candidate_prob"] = 0.5 * out["pscore"] + 0.5 / max(out["action"].nunique(), 1)
+        raise ValueError("Explicit candidate_prob required; no invented target policy")
+    for c in df.columns:
+        if c.startswith("candidate_prob_action_") or c in {"x1", "x2"}:
+            out[c] = df[c].astype(float)
+    from src.ope.estimators import importance_weights
+    importance_weights(out.reward, out.pscore, out.candidate_prob)
     return out

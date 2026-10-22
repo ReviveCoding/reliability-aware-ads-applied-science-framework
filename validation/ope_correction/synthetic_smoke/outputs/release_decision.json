@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "reasons": [
+    "All core calibration, slice reliability, relevance, and marketplace guardrails passed."
+  ],
+  "recommended_actions": [
+    "Proceed with broader sample/public-data validation."
+  ],
+  "final_policy_snapshot": {
+    "policy": "score_reliability",
+    "selected_impressions": 24,
+    "clicks": 4,
+    "conversions": 1,
+    "expected_clicks": 2.866774534991316,
+    "revenue": 12.515132902603781,
+    "spend_proxy": 70.93728923269349,
+    "iroas_proxy": 0.17642530519527977,
+    "advertiser_concentration_top1": 0.25,
+    "long_tail_exposure": 0.375,
+    "false_high_rank_irrelevant_rate": 0.125
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "data_kind": "synthetic only",
+  "n": 20000,
+  "seed": 123,
+  "known_target_value_on_sampled_contexts": 0.27688250424689936,
+  "absolute_errors": {
+    "ips": 0.0012637218743782874,
+    "snips": 0.002535472327295618,
+    "doubly_robust": 0.0031979781304968813
+  },
+  "metrics": {
+    "ips": {
+      "value": 0.27814622612127765,
+      "ci_low": 0.26628454791515954,
+      "ci_high": 0.2902758411159702,
+      "ci_width": 0.02399129320081067
+    },
+    "snips": {
+      "value": 0.279417976574195,
+      "ci_low": 0.2677278550998013,
+      "ci_high": 0.2915849870853648,
+      "ci_width": 0.023857131985563496
+    },
+    "doubly_robust": {
+      "value": 0.28008048237739624,
+      "ci_low": 0.26914364540379915,
+      "ci_high": 0.29211296643266454,
+      "ci_width": 0.022969321028865397
+    },
+    "diagnostics": {
+      "effective_sample_size": 5423.58081994745,
+      "max_importance_weight": 14.40821786538931,
+      "mean_importance_weight": 0.9954485732503341,
+      "low_support_rate": 0.76235
+    },
+    "inference": {
+      "method": "iid row percentile bootstrap; DR fixed cross-fitted scores",
+      "n_boot": 300,
+      "n_splits": 5,
+      "seed": 42,
+      "limitation": "Not cluster/time-aware; no nuisance refitting or production coverage guarantee"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "ips": {
+    "value": 0.0,
+    "ci_low": 0.0,
+    "ci_high": 0.0
+  },
+  "snips": {
+    "value": 0.0,
+    "ci_low": 0.0,
+    "ci_high": 0.0
+  },
+  "doubly_robust": {
+    "value": 4.336808689942018e-19,
+    "ci_low": 2.168404344971009e-19,
+    "ci_high": 0.0
+  },
+  "diagnostics": {
+    "effective_sample_size": 0.0,
+    "max_importance_weight": 0.0,
+    "mean_importance_weight": 0.0,
+    "low_candidate_support_rate": 0.0
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "logged_policy_value": 0.0042,
+  "ips": {
+    "value": 0.0024597434758131076,
+    "ci_low": 0.0010356569859871546,
+    "ci_high": 0.004199813931838868
+  },
+  "snips": {
+    "value": 0.0024353004010793785,
+    "ci_low": 0.0010253654082856933,
+    "ci_high": 0.004158079349833418
+  },
+  "doubly_robust": {
+    "value": 0.0024957770082094178,
+    "ci_low": 0.0011252045603265019,
+    "ci_high": 0.004317053219629562
+  },
+  "diagnostics": {
+    "effective_sample_size": 342.5569352840535,
+    "max_importance_weight": 277.77777777777777,
+    "mean_importance_weight": 1.0100369854671298,
+    "low_candidate_support_rate": 0.0
+  }
+}
