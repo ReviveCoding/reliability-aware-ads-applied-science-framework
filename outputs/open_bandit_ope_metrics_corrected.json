@@ -1,0 +1,54 @@
+{
+  "logged_policy_value": 0.0042,
+  "ips": {
+    "value": 0.0024597434758131045,
+    "ci_low": 0.0010356569859871529,
+    "ci_high": 0.004199813931838866
+  },
+  "snips": {
+    "value": 0.002435300401079453,
+    "ci_low": 0.0010386108073666635,
+    "ci_high": 0.004185765018537857
+  },
+  "doubly_robust": {
+    "value": 0.002755148653801976,
+    "ci_low": 0.0008206995323385517,
+    "ci_high": 0.004794983839781668
+  },
+  "diagnostics": {
+    "effective_sample_size": 342.55693528409915,
+    "max_importance_weight": 277.77777777777777,
+    "mean_importance_weight": 1.0100369854670974,
+    "low_candidate_support_rate": 0.0
+  },
+  "estimator_version": "crossfit-action-integrated-v1",
+  "provenance": {
+    "estimator_version": "crossfit-action-integrated-v1",
+    "run_utc": "2026-10-22T18:36:06.157861+00:00",
+    "source_sha256": "0ad874e4dbf6902f0845dd478ad8dde5ef6903583d3ffaace78411bdad064106",
+    "source_url": "https://raw.githubusercontent.com/st-tech/zr-obp/8cbd5fa4558b7ad2ba4781546d6604e4cc3e07c4/obd/bts/all/all.csv",
+    "python": "3.12.14",
+    "numpy": "2.5.4",
+    "pandas": "3.1.0",
+    "sklearn": "1.9.1",
+    "crossfit_folds": 5,
+    "seed": 42,
+    "bootstrap_replicates": 300,
+    "policy": "softmax over all explicitly mapped item affinity columns",
+    "estimand": "per-position marginal reward, averaged over observed positions; not slate value",
+    "ci_method": "IID row percentile bootstrap; SNIPS ratio recomputed; DR fixed out-of-fold scores",
+    "limitations": "No nuisance refit in bootstrap; ignores temporal/user dependence; not production qualification"
+  },
+  "dataset": "Open Bandit local public-data sample",
+  "source_file": "data/open_bandit_verified/all.csv",
+  "rows": 10000,
+  "release_decision": {
+    "status": "ITERATE",
+    "checks": {
+      "dr_lower_bound_beats_logged_policy": false,
+      "effective_sample_size_ok": false,
+      "importance_weight_not_extreme": false
+    },
+    "reason": "Candidate policy remains ITERATE because value or support diagnostics did not pass all promotion checks."
+  }
+}

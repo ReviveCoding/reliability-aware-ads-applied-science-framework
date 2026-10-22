@@ -11,7 +11,9 @@ OUTPUTS.mkdir(exist_ok=True)
 PUBLIC_METRIC_FILES = {
     "criteo_uplift": OUTPUTS / "criteo_uplift_metrics.json",
     "esci_relevance": OUTPUTS / "esci_relevance_metrics.json",
-    "open_bandit_ope": OUTPUTS / "open_bandit_ope_metrics.json",
+    "open_bandit_ope": (OUTPUTS / "open_bandit_ope_metrics_corrected.json"
+                        if (OUTPUTS / "open_bandit_ope_metrics_corrected.json").exists()
+                        else OUTPUTS / "open_bandit_ope_metrics.json"),
     "criteo_click_ctr": OUTPUTS / "criteo_click_ctr_metrics.json",
 }
 
@@ -68,6 +70,11 @@ def one_line_summary(name, metrics):
             f"Logged value={metrics.get('logged_policy_value')}, DR value={dr.get('value')}, "
             f"DR CI=[{dr.get('ci_low')}, {dr.get('ci_high')}], ESS={diag.get('effective_sample_size')}."
         )
+        if metrics.get("estimator_version") != "crossfit-action-integrated-v1":
+            primary = ("Historical OPE estimates withdrawn pending corrected validation; "
+                       f"historical ESS={diag.get('effective_sample_size')}. "
+                       "Do not use historical DR/SNIPS intervals as validated evidence.")
+            status = "ITERATE"
     elif name == "criteo_click_ctr":
         lr = metrics.get("logistic_regression", {})
         gbdt = metrics.get("gbdt", {})
@@ -139,7 +146,7 @@ Public-data validation uses local public datasets and synthetic fallback only. N
 
 ## Interpretation
 
-The framework is now public-data validated across uplift/incrementality, product-query relevance, off-policy evaluation, and CTR/calibration modules. Several candidate models are intentionally held at ITERATE because release gates require more than a single improved metric. This is expected and useful: the project demonstrates metric-driven promotion discipline rather than method-driven overclaiming.
+The table records module-specific evidence; historical Open Bandit estimates without corrected estimator provenance are not validated OPE evidence. Several candidate models are intentionally held at ITERATE because release gates require more than a single improved metric. This is expected and useful: the project demonstrates metric-driven promotion discipline rather than method-driven overclaiming.
 
 ## Safe resume wording
 

@@ -128,7 +128,7 @@ This repository uses local public/proxy datasets and synthetic fallback only. It
 |---|---|---|---|
 | criteo_uplift | Criteo Uplift v2.1 local public-data sample | ITERATE | T-learner AUUC=31.323246684676043, Qini=1.3236038275331832, uplift@20=0.003468105315009738; pCVR baseline AUUC=54.45230542291612, Qini=24.452662565773274, uplift@20=0.006609127662921918. |
 | esci_relevance | Amazon ESCI Shopping Queries local public-data sample | ITERATE | TF-IDF NDCG@10=0.7539334608935288, Recall@10=0.5468361105179388; reranker NDCG@10=0.7541430157510265, Recall@10=0.5424159058290577. |
-| open_bandit_ope | Open Bandit local public-data sample | ITERATE | Logged value=0.0042, DR value=0.0024957770082094173, DR CI=[0.0011252045603265017, 0.004317053219629562], ESS=342.5569352840535. |
+| open_bandit_ope | Open Bandit local public-data sample; corrected pinned-sample rerun | ITERATE | Logged value=0.0042; corrected cross-fitted DR=0.002755149, exploratory IID CI=[0.000820700, 0.004794984]; ESS=342.56; max weight=277.78. All three promotion checks fail. Historical DR/SNIPS intervals are superseded. |
 | criteo_click_ctr | Criteo Click Logs local public-data sample | ITERATE | LR AUC=0.7086663943114613, ECE=0.0015713278297538127; GBDT AUC=0.7002069626101098, ECE=0.004141469619541966; GBDT+EB AUC=0.6627800466601141, ECE=0.0005694217648938824. |
 | GPU DeepCTR / DeepFM v2 | Criteo Click Logs public sample | PASS | LR+DeepFM ensemble: ROC-AUC 0.7205 to 0.7216, PR-AUC 0.0876 to 0.0880, log loss 0.12940 to 0.12917, ECE 0.00351 to 0.00212 (39.6% reduction). |
 | GPU AutoInt attention CTR | Criteo Click Logs public sample | ITERATE | LR+AutoInt ensemble: ROC-AUC 0.7205 to 0.7208, PR-AUC 0.0876 to 0.0878, ECE 0.00351 to 0.00283; held at ITERATE versus DeepFM champion. |
@@ -160,3 +160,13 @@ The ablation strengthens the ABC-style ESCI result by separating the components.
 - Do not claim explicit ESCI overreach penalty was the promoted performance driver.
 
 <!-- PUBLIC_VALIDATION_SUMMARY_END -->
+
+## OPE correction (2026-10-22)
+
+The historical DR implementation reused the logged-action prediction as the target-policy direct term and trained on evaluation outcomes. The historical SNIPS interval bootstrapped once-normalized rewards rather than the ratio. These estimates/intervals must not be cited as validated performance evidence. Original artifacts remain unchanged for auditability.
+
+The corrected implementation integrates reward predictions over the **complete candidate action distribution**, evaluates predictions out-of-fold (5 folds), and recomputes the SNIPS numerator and denominator in every paired bootstrap resample. Missing policy distributions and invalid propensities now fail rather than silently fabricating support. The raw Open Bandit runner also uses explicit item identity and action-specific affinity instead of only logged-item affinity.
+
+A pinned upstream Open Bandit 10,000-row sample reproduced the historical metrics, then was rerun with the correction. The original local file hash is unavailable, so byte identity with that file is not established. SNIPS remains 0.002435300; its corrected interval is [0.001038611, 0.004185765]. The decision remains **ITERATE**: DR lower bound does not beat logged value, ESS 342.56 is below 1,000, and max importance weight 277.78 exceeds 100. This is per-position marginal reward, not slate or production performance. Intervals use 300 IID row bootstrap replicates with fixed cross-fitted DR scores; they do not model repeated-user/time dependence or nuisance-refit uncertainty.
+
+See [correction audit and reproduction steps](reports/ope_correction_audit.md), [corrected public metrics](outputs/open_bandit_ope_metrics_corrected.json), and [corrected public report](reports/open_bandit_ope_corrected_report.md). Synthetic correctness tests and the synthetic integration smoke run are separate from public-data evidence. DeepFM and ESCI results were not changed or revalidated by this focused OPE correction.

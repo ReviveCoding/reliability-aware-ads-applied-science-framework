@@ -1,5 +1,9 @@
 import os
 import json
+import hashlib
+import platform
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -7,33 +11,22 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from src.common.metrics import bootstrap_ci
+from src.ope.estimators import cross_fitted_dr, bootstrap_snips_ci, snips
+
 REPORTS = ROOT / "reports"
 OUTPUTS = ROOT / "outputs"
-REPORTS.mkdir(exist_ok=True)
-OUTPUTS.mkdir(exist_ok=True)
 
 
 def find_bandit_file(data_dir):
     root = Path(data_dir)
-    preferred = list(root.rglob("all.csv"))
-    if preferred:
-        return preferred[0]
-    candidates = [p for p in root.rglob("*.csv") if p.name.lower() != "item_context.csv"]
-    if not candidates:
-        raise FileNotFoundError(f"No Open Bandit CSV found under {root}")
+    if root.is_file():
+        return root
+    candidates = sorted(p for p in root.rglob("*.csv") if p.name.lower() != "item_context.csv")
+    if len(candidates) != 1:
+        raise ValueError("Provide an explicit Open Bandit CSV path, or a directory with exactly one feedback CSV.")
     return candidates[0]
-
-
-def bootstrap_ci(values, n_boot=300, seed=42):
-    rng = np.random.default_rng(seed)
-    values = np.asarray(values, dtype=float)
-    if len(values) == 0:
-        return float("nan"), float("nan")
-    means = []
-    for _ in range(n_boot):
-        sample = rng.choice(values, size=len(values), replace=True)
-        means.append(sample.mean())
-    return float(np.quantile(means, 0.025)), float(np.quantile(means, 0.975))
 
 
 def load_open_bandit(data_dir, max_rows=300000):
@@ -46,44 +39,52 @@ def load_open_bandit(data_dir, max_rows=300000):
     if missing:
         raise ValueError(f"Missing required columns {missing}. Columns: {df.columns.tolist()}")
 
-    df = df.dropna(subset=["item_id", "click", "propensity_score"]).copy()
-    df["reward"] = pd.to_numeric(df["click"], errors="coerce").fillna(0).astype(float)
-    df["pscore"] = pd.to_numeric(df["propensity_score"], errors="coerce").clip(1e-6, 1.0)
-    df["item_id_int"] = pd.to_numeric(df["item_id"], errors="coerce").fillna(-1).astype(int)
-    return df, path
+    # Do not silently replace missing rewards, invalid actions, or unsupported propensities.
+    for name in ["click", "propensity_score", "item_id"]:
+        df[name] = pd.to_numeric(df[name], errors="raise")
+        if not np.isfinite(df[name]).all():
+            raise ValueError(f"{name} must be finite")
+    if not df["click"].between(0, 1).all():
+        raise ValueError("click must lie in [0, 1]")
+    if not ((df.propensity_score > 0) & (df.propensity_score <= 1)).all():
+        raise ValueError("propensity_score must lie in (0, 1]")
+    if not (df.item_id == np.floor(df.item_id)).all():
+        raise ValueError("item_id must contain integers")
+    df["reward"] = df["click"].astype(float)
+    df["pscore"] = df["propensity_score"].astype(float)
+    df["item_id_int"] = df["item_id"].astype(int)
+    return df.reset_index(drop=True), path
+
+
+def candidate_policy(df):
+    """Return the full softmax policy, with explicit affinity-suffix action IDs."""
+    prefix = "user-item_affinity_"
+    cols = [c for c in df.columns if c.startswith(prefix)]
+    if not cols:
+        raise ValueError("Full per-action affinity columns are required; no uniform fallback is inferred")
+    try:
+        action_values = np.array([int(c[len(prefix):]) for c in cols])
+    except ValueError as exc:
+        raise ValueError("Affinity column suffixes must be integer item IDs") from exc
+    if len(np.unique(action_values)) != len(action_values):
+        raise ValueError("Affinity action IDs must be unique")
+    affinity = df[cols].apply(pd.to_numeric, errors="raise").to_numpy(dtype=float)
+    if not np.isfinite(affinity).all():
+        raise ValueError("Affinity features must be finite")
+    lookup = {a: j for j, a in enumerate(action_values)}
+    if not set(df.item_id_int).issubset(lookup):
+        raise ValueError("Every logged item must have an explicitly mapped affinity column")
+    indices = np.array([lookup[a] for a in df.item_id_int])
+    exp_scores = np.exp(affinity - affinity.max(axis=1, keepdims=True))
+    probs = exp_scores / exp_scores.sum(axis=1, keepdims=True)
+    return action_values, affinity, probs, indices
 
 
 def add_candidate_policy_probability(df):
-    affinity_cols = [c for c in df.columns if c.startswith("user-item_affinity_")]
     df = df.copy()
-
-    if not affinity_cols:
-        df["candidate_prob"] = 0.5
-        df["observed_affinity"] = 0.0
-        return df
-
-    aff = df[affinity_cols].apply(pd.to_numeric, errors="coerce").fillna(0.0)
-    scores = aff.values
-    scores = scores - scores.max(axis=1, keepdims=True)
-    exp_scores = np.exp(scores)
-    probs = exp_scores / np.clip(exp_scores.sum(axis=1, keepdims=True), 1e-12, None)
-
-    observed = []
-    cand_prob = []
-    col_index = {c: i for i, c in enumerate(affinity_cols)}
-
-    for i, item in enumerate(df["item_id_int"].values):
-        col = f"user-item_affinity_{item}"
-        if col in col_index:
-            j = col_index[col]
-            observed.append(float(aff.iloc[i, j]))
-            cand_prob.append(float(probs[i, j]))
-        else:
-            observed.append(float(aff.iloc[i].mean()))
-            cand_prob.append(float(1.0 / len(affinity_cols)))
-
-    df["observed_affinity"] = observed
-    df["candidate_prob"] = np.clip(cand_prob, 1e-6, 1.0)
+    _, affinity, probs, indices = candidate_policy(df)
+    df["candidate_prob"] = probs[np.arange(len(df)), indices]
+    df["observed_affinity"] = affinity[np.arange(len(df)), indices]
     return df
 
 
@@ -93,51 +94,47 @@ def ips_values(df):
 
 
 def snips_value_and_values(df):
-    w = df["candidate_prob"] / df["pscore"]
-    vals = w * df["reward"]
-    value = vals.sum() / max(w.sum(), 1e-9)
-    normalized_vals = vals / max(w.mean(), 1e-9)
-    return float(value), normalized_vals.values
+    """Return point estimate and paired numerator/denominator rows."""
+    return snips(df)
 
 
 def dr_values(df):
-    feature_cols = ["observed_affinity"]
-    if "position" in df.columns:
-        feature_cols.append("position")
-    for c in ["user_feature_0", "user_feature_1", "user_feature_2", "user_feature_3"]:
-        if c in df.columns:
-            feature_cols.append(c)
+    actions, affinity, probs, _ = candidate_policy(df)
+    # One-hot item IDs avoid an artificial ordinal action scale. Categorical user
+    # features are encoded, not silently coerced to zero. No rewards enter encoding.
+    context_cols = [c for c in df.columns if c.startswith("user_feature_")]
+    if "position" in df:
+        context_cols.append("position")
+    context = pd.get_dummies(df[context_cols].astype(str), dtype=float).to_numpy()
+    lookup = {a: j for j, a in enumerate(actions)}
+    identity = np.eye(len(actions))
 
-    X = df[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0.0)
-    y = df["reward"].values
+    def features(rows, action):
+        row_actions = np.broadcast_to(action, (len(rows),))
+        indices = np.array([lookup[a] for a in row_actions])
+        return np.column_stack((context[rows], affinity[rows, indices], identity[indices]))
 
     model = RandomForestRegressor(
-        n_estimators=80,
-        max_depth=6,
-        min_samples_leaf=10,
-        random_state=42,
-        n_jobs=-1,
+        n_estimators=80, max_depth=6, min_samples_leaf=10,
+        random_state=42, n_jobs=1,
     )
-    model.fit(X, y)
-
-    q_logged = np.clip(model.predict(X), 0, 1)
-    q_eval = q_logged
-    w = df["candidate_prob"] / df["pscore"]
-
-    return q_eval + w * (df["reward"].values - q_logged)
+    return cross_fitted_dr(
+        df.reward.to_numpy(), df.item_id_int.to_numpy(), df.pscore.to_numpy(),
+        probs, actions, features, n_splits=5, seed=42, model=model,
+    )
 
 
 def summarize(df):
     logged_value = float(df["reward"].mean())
 
     ips_vals = ips_values(df)
-    ips_ci = bootstrap_ci(ips_vals)
+    ips_ci = bootstrap_ci(ips_vals, n_boot=300)
 
-    snips_val, snips_vals = snips_value_and_values(df)
-    snips_ci = bootstrap_ci(snips_vals)
+    snips_val, _ = snips_value_and_values(df)
+    snips_ci = bootstrap_snips_ci(df.reward.to_numpy(), (df.candidate_prob / df.pscore).to_numpy(), n_boot=300)
 
     dr_vals = dr_values(df)
-    dr_ci = bootstrap_ci(dr_vals)
+    dr_ci = bootstrap_ci(dr_vals, n_boot=300)
 
     w = df["candidate_prob"] / df["pscore"]
 
@@ -162,7 +159,9 @@ def main():
     if not data_dir:
         raise SystemExit("Set OPEN_BANDIT_DIR first.")
 
-    df, path = load_open_bandit(data_dir)
+    REPORTS.mkdir(exist_ok=True)
+    OUTPUTS.mkdir(exist_ok=True)
+    df, path = load_open_bandit(data_dir, max_rows=int(os.environ.get("OPEN_BANDIT_MAX_ROWS", "300000")))
     df = add_candidate_policy_probability(df)
 
     print("Loaded Open Bandit file:", path)
@@ -183,6 +182,21 @@ def main():
 
     status = "PASS" if all(checks.values()) else "ITERATE"
 
+    metrics["estimator_version"] = "crossfit-action-integrated-v1"
+    metrics["provenance"] = {
+        "estimator_version": "crossfit-action-integrated-v1",
+        "run_utc": datetime.now(timezone.utc).isoformat(),
+        "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "source_url": os.environ.get("OPEN_BANDIT_SOURCE_URL"),
+        "python": platform.python_version(),
+        "numpy": np.__version__, "pandas": pd.__version__,
+        "sklearn": __import__("sklearn").__version__,
+        "crossfit_folds": 5, "seed": 42, "bootstrap_replicates": 300,
+        "policy": "softmax over all explicitly mapped item affinity columns",
+        "estimand": "per-position marginal reward, averaged over observed positions; not slate value",
+        "ci_method": "IID row percentile bootstrap; SNIPS ratio recomputed; DR fixed out-of-fold scores",
+        "limitations": "No nuisance refit in bootstrap; ignores temporal/user dependence; not production qualification",
+    }
     metrics["dataset"] = "Open Bandit local public-data sample"
     metrics["source_file"] = str(path)
     metrics["rows"] = int(len(df))
@@ -196,14 +210,20 @@ def main():
         ),
     }
 
-    (OUTPUTS / "open_bandit_ope_metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    df.head(5000).to_csv(OUTPUTS / "open_bandit_scored_sample.csv", index=False)
+    (OUTPUTS / "open_bandit_ope_metrics_corrected.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    df.head(5000).to_csv(OUTPUTS / "open_bandit_corrected_scored_sample.csv", index=False)
 
     report = f"""# Open Bandit OPE Public-Data Validation Report
 
 ## Claim boundary
 
-This run uses a local Open Bandit public dataset sample. It does not use proprietary Amazon Ads data, real advertiser data, customer data, production traffic, or production deployment.
+This corrected run uses a local Open Bandit public dataset sample. Historical artifacts are preserved. DR integrates all candidate actions and uses five-fold out-of-fold predictions; SNIPS recomputes its denominator in every bootstrap resample. Intervals are exploratory IID-row intervals, not dependence-robust or production qualification evidence. It does not use proprietary Amazon Ads data, real advertiser data, customer data, production traffic, or production deployment.
+
+## Provenance
+
+```json
+{json.dumps(metrics["provenance"], indent=2)}
+```
 
 ## Data summary
 
@@ -232,11 +252,11 @@ This run uses a local Open Bandit public dataset sample. It does not use proprie
 - Checks: {checks}
 - Reason: {metrics["release_decision"]["reason"]}
 """
-    (REPORTS / "open_bandit_ope_public_report.md").write_text(report, encoding="utf-8")
+    (REPORTS / "open_bandit_ope_corrected_report.md").write_text(report, encoding="utf-8")
 
     print("Open Bandit OPE public-data validation finished.")
-    print("Report:", REPORTS / "open_bandit_ope_public_report.md")
-    print("Metrics:", OUTPUTS / "open_bandit_ope_metrics.json")
+    print("Report:", REPORTS / "open_bandit_ope_corrected_report.md")
+    print("Metrics:", OUTPUTS / "open_bandit_ope_metrics_corrected.json")
     print(json.dumps(metrics, indent=2))
 
 
