@@ -3,7 +3,7 @@ import json
 import os
 import platform
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
