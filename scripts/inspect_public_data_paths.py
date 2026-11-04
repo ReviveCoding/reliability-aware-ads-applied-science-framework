@@ -1,9 +1,10 @@
-﻿from pathlib import Path
-import os
-import json
-import pandas as pd
 import gzip
+import json
+import os
 import zipfile
+from pathlib import Path
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs"
@@ -18,6 +19,7 @@ ENV_PATHS = {
     "criteo_click": os.environ.get("CRITEO_CLICK_DIR"),
 }
 
+
 def list_files(path, max_files=80):
     p = Path(path)
     if not p.exists():
@@ -25,16 +27,28 @@ def list_files(path, max_files=80):
     if p.is_file():
         return [p]
     files = []
-    for ext in ["*.csv", "*.tsv", "*.txt", "*.gz", "*.zip", "*.parquet", "*.json", "*.jsonl"]:
+    for ext in [
+        "*.csv",
+        "*.tsv",
+        "*.txt",
+        "*.gz",
+        "*.zip",
+        "*.parquet",
+        "*.json",
+        "*.jsonl",
+    ]:
         files.extend(p.rglob(ext))
     return files[:max_files]
+
 
 def safe_preview(path, nrows=5):
     path = Path(path)
     info = {
         "file": str(path),
         "suffix": path.suffix,
-        "size_mb": round(path.stat().st_size / 1024 / 1024, 3) if path.exists() else None,
+        "size_mb": round(path.stat().st_size / 1024 / 1024, 3)
+        if path.exists()
+        else None,
         "preview_status": "not_attempted",
     }
     try:
@@ -68,6 +82,7 @@ def safe_preview(path, nrows=5):
         info["error"] = repr(e)
     return info
 
+
 def main():
     result = {}
     for name, path in ENV_PATHS.items():
@@ -100,7 +115,9 @@ def main():
             md.append(f"### {Path(prev['file']).name}")
             md.append(f"- Size MB: `{prev.get('size_mb')}`")
             md.append(f"- Preview status: `{prev.get('preview_status')}`")
-            md.append(f"- Columns: `{prev.get('columns', prev.get('zip_members_sample', []))}`")
+            md.append(
+                f"- Columns: `{prev.get('columns', prev.get('zip_members_sample', []))}`"
+            )
             if prev.get("error"):
                 md.append(f"- Error: `{prev['error']}`")
             md.append("")
@@ -109,7 +126,19 @@ def main():
 
     print(f"Wrote: {out_path}")
     print(f"Wrote: {report_path}")
-    print(json.dumps({k: {"exists": v.get("exists"), "file_count_sample": v.get("file_count_sample")} for k, v in result.items()}, indent=2))
+    print(
+        json.dumps(
+            {
+                k: {
+                    "exists": v.get("exists"),
+                    "file_count_sample": v.get("file_count_sample"),
+                }
+                for k, v in result.items()
+            },
+            indent=2,
+        )
+    )
+
 
 if __name__ == "__main__":
     main()

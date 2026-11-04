@@ -1,5 +1,5 @@
-from src.ctr_cvr.synthetic_ads_generator import generate_synthetic_ads
 from src.ctr_cvr.feature_builder import build_features
+from src.ctr_cvr.synthetic_ads_generator import generate_synthetic_ads
 from src.policy.auction_ranking import compare_policies
 
 

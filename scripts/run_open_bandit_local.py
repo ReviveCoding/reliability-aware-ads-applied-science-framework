@@ -1,9 +1,9 @@
-import os
-import json
 import hashlib
+import json
+import os
 import platform
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +13,7 @@ from sklearn.ensemble import RandomForestRegressor
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.common.metrics import bootstrap_ci
-from src.ope.estimators import cross_fitted_dr, bootstrap_snips_ci, snips
+from src.ope.estimators import bootstrap_snips_ci, cross_fitted_dr, snips
 
 REPORTS = ROOT / "reports"
 OUTPUTS = ROOT / "outputs"
@@ -23,9 +23,13 @@ def find_bandit_file(data_dir):
     root = Path(data_dir)
     if root.is_file():
         return root
-    candidates = sorted(p for p in root.rglob("*.csv") if p.name.lower() != "item_context.csv")
+    candidates = sorted(
+        p for p in root.rglob("*.csv") if p.name.lower() != "item_context.csv"
+    )
     if len(candidates) != 1:
-        raise ValueError("Provide an explicit Open Bandit CSV path, or a directory with exactly one feedback CSV.")
+        raise ValueError(
+            "Provide an explicit Open Bandit CSV path, or a directory with exactly one feedback CSV."
+        )
     return candidates[0]
 
 
@@ -37,7 +41,9 @@ def load_open_bandit(data_dir, max_rows=300000):
     required = {"item_id", "click", "propensity_score"}
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(f"Missing required columns {missing}. Columns: {df.columns.tolist()}")
+        raise ValueError(
+            f"Missing required columns {missing}. Columns: {df.columns.tolist()}"
+        )
 
     # Do not silently replace missing rewards, invalid actions, or unsupported propensities.
     for name in ["click", "propensity_score", "item_id"]:
@@ -61,9 +67,11 @@ def candidate_policy(df):
     prefix = "user-item_affinity_"
     cols = [c for c in df.columns if c.startswith(prefix)]
     if not cols:
-        raise ValueError("Full per-action affinity columns are required; no uniform fallback is inferred")
+        raise ValueError(
+            "Full per-action affinity columns are required; no uniform fallback is inferred"
+        )
     try:
-        action_values = np.array([int(c[len(prefix):]) for c in cols])
+        action_values = np.array([int(c[len(prefix) :]) for c in cols])
     except ValueError as exc:
         raise ValueError("Affinity column suffixes must be integer item IDs") from exc
     if len(np.unique(action_values)) != len(action_values):
@@ -73,7 +81,9 @@ def candidate_policy(df):
         raise ValueError("Affinity features must be finite")
     lookup = {a: j for j, a in enumerate(action_values)}
     if not set(df.item_id_int).issubset(lookup):
-        raise ValueError("Every logged item must have an explicitly mapped affinity column")
+        raise ValueError(
+            "Every logged item must have an explicitly mapped affinity column"
+        )
     indices = np.array([lookup[a] for a in df.item_id_int])
     exp_scores = np.exp(affinity - affinity.max(axis=1, keepdims=True))
     probs = exp_scores / exp_scores.sum(axis=1, keepdims=True)
@@ -112,15 +122,27 @@ def dr_values(df):
     def features(rows, action):
         row_actions = np.broadcast_to(action, (len(rows),))
         indices = np.array([lookup[a] for a in row_actions])
-        return np.column_stack((context[rows], affinity[rows, indices], identity[indices]))
+        return np.column_stack(
+            (context[rows], affinity[rows, indices], identity[indices])
+        )
 
     model = RandomForestRegressor(
-        n_estimators=80, max_depth=6, min_samples_leaf=10,
-        random_state=42, n_jobs=1,
+        n_estimators=80,
+        max_depth=6,
+        min_samples_leaf=10,
+        random_state=42,
+        n_jobs=1,
     )
     return cross_fitted_dr(
-        df.reward.to_numpy(), df.item_id_int.to_numpy(), df.pscore.to_numpy(),
-        probs, actions, features, n_splits=5, seed=42, model=model,
+        df.reward.to_numpy(),
+        df.item_id_int.to_numpy(),
+        df.pscore.to_numpy(),
+        probs,
+        actions,
+        features,
+        n_splits=5,
+        seed=42,
+        model=model,
     )
 
 
@@ -131,7 +153,9 @@ def summarize(df):
     ips_ci = bootstrap_ci(ips_vals, n_boot=300)
 
     snips_val, _ = snips_value_and_values(df)
-    snips_ci = bootstrap_snips_ci(df.reward.to_numpy(), (df.candidate_prob / df.pscore).to_numpy(), n_boot=300)
+    snips_ci = bootstrap_snips_ci(
+        df.reward.to_numpy(), (df.candidate_prob / df.pscore).to_numpy(), n_boot=300
+    )
 
     dr_vals = dr_values(df)
     dr_ci = bootstrap_ci(dr_vals, n_boot=300)
@@ -139,7 +163,7 @@ def summarize(df):
     w = df["candidate_prob"] / df["pscore"]
 
     diagnostics = {
-        "effective_sample_size": float(w.sum() ** 2 / max((w ** 2).sum(), 1e-9)),
+        "effective_sample_size": float(w.sum() ** 2 / max((w**2).sum(), 1e-9)),
         "max_importance_weight": float(w.max()),
         "mean_importance_weight": float(w.mean()),
         "low_candidate_support_rate": float((df["candidate_prob"] < 0.01).mean()),
@@ -147,9 +171,17 @@ def summarize(df):
 
     return {
         "logged_policy_value": logged_value,
-        "ips": {"value": float(np.mean(ips_vals)), "ci_low": ips_ci[0], "ci_high": ips_ci[1]},
+        "ips": {
+            "value": float(np.mean(ips_vals)),
+            "ci_low": ips_ci[0],
+            "ci_high": ips_ci[1],
+        },
         "snips": {"value": snips_val, "ci_low": snips_ci[0], "ci_high": snips_ci[1]},
-        "doubly_robust": {"value": float(np.mean(dr_vals)), "ci_low": dr_ci[0], "ci_high": dr_ci[1]},
+        "doubly_robust": {
+            "value": float(np.mean(dr_vals)),
+            "ci_low": dr_ci[0],
+            "ci_high": dr_ci[1],
+        },
         "diagnostics": diagnostics,
     }
 
@@ -161,7 +193,9 @@ def main():
 
     REPORTS.mkdir(exist_ok=True)
     OUTPUTS.mkdir(exist_ok=True)
-    df, path = load_open_bandit(data_dir, max_rows=int(os.environ.get("OPEN_BANDIT_MAX_ROWS", "300000")))
+    df, path = load_open_bandit(
+        data_dir, max_rows=int(os.environ.get("OPEN_BANDIT_MAX_ROWS", "300000"))
+    )
     df = add_candidate_policy_probability(df)
 
     print("Loaded Open Bandit file:", path)
@@ -171,7 +205,9 @@ def main():
     metrics = summarize(df)
 
     dr_lcb_lift = metrics["doubly_robust"]["ci_low"] - metrics["logged_policy_value"]
-    support_ok = metrics["diagnostics"]["effective_sample_size"] >= max(1000, 0.02 * len(df))
+    support_ok = metrics["diagnostics"]["effective_sample_size"] >= max(
+        1000, 0.02 * len(df)
+    )
     weight_ok = metrics["diagnostics"]["max_importance_weight"] < 100
 
     checks = {
@@ -185,13 +221,16 @@ def main():
     metrics["estimator_version"] = "crossfit-action-integrated-v1"
     metrics["provenance"] = {
         "estimator_version": "crossfit-action-integrated-v1",
-        "run_utc": datetime.now(timezone.utc).isoformat(),
+        "run_utc": datetime.now(UTC).isoformat(),
         "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "source_url": os.environ.get("OPEN_BANDIT_SOURCE_URL"),
         "python": platform.python_version(),
-        "numpy": np.__version__, "pandas": pd.__version__,
+        "numpy": np.__version__,
+        "pandas": pd.__version__,
         "sklearn": __import__("sklearn").__version__,
-        "crossfit_folds": 5, "seed": 42, "bootstrap_replicates": 300,
+        "crossfit_folds": 5,
+        "seed": 42,
+        "bootstrap_replicates": 300,
         "policy": "softmax over all explicitly mapped item affinity columns",
         "estimand": "per-position marginal reward, averaged over observed positions; not slate value",
         "ci_method": "IID row percentile bootstrap; SNIPS ratio recomputed; DR fixed out-of-fold scores",
@@ -210,8 +249,12 @@ def main():
         ),
     }
 
-    (OUTPUTS / "open_bandit_ope_metrics_corrected.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    df.head(5000).to_csv(OUTPUTS / "open_bandit_corrected_scored_sample.csv", index=False)
+    (OUTPUTS / "open_bandit_ope_metrics_corrected.json").write_text(
+        json.dumps(metrics, indent=2), encoding="utf-8"
+    )
+    df.head(5000).to_csv(
+        OUTPUTS / "open_bandit_corrected_scored_sample.csv", index=False
+    )
 
     report = f"""# Open Bandit OPE Public-Data Validation Report
 
@@ -252,7 +295,9 @@ This corrected run uses a local Open Bandit public dataset sample. Historical ar
 - Checks: {checks}
 - Reason: {metrics["release_decision"]["reason"]}
 """
-    (REPORTS / "open_bandit_ope_corrected_report.md").write_text(report, encoding="utf-8")
+    (REPORTS / "open_bandit_ope_corrected_report.md").write_text(
+        report, encoding="utf-8"
+    )
 
     print("Open Bandit OPE public-data validation finished.")
     print("Report:", REPORTS / "open_bandit_ope_corrected_report.md")

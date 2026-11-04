@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import time
 from pathlib import Path
 
@@ -12,7 +12,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 OUTPUTS = ROOT / "outputs"
@@ -23,15 +22,30 @@ LABEL_TO_GAIN = {"E": 1.0, "S": 0.1, "C": 0.01, "I": 0.0}
 LABEL_TO_NUM = {"I": 0, "C": 1, "S": 2, "E": 3}
 
 FEATURE_COLS = [
-    "tfidf_title", "tfidf_desc", "tfidf_bullet", "tfidf_all",
-    "char_tfidf_title", "char_tfidf_all",
-    "title_jaccard", "desc_jaccard", "bullet_jaccard", "all_jaccard",
-    "title_query_coverage", "all_query_coverage",
-    "title_contains_all_query", "all_contains_all_query",
-    "char_title_jaccard", "char_desc_jaccard",
-    "brand_in_query", "brand_in_title",
-    "query_len", "title_len", "desc_len", "len_ratio_title_query",
-    "exact_query_in_title", "exact_query_in_all",
+    "tfidf_title",
+    "tfidf_desc",
+    "tfidf_bullet",
+    "tfidf_all",
+    "char_tfidf_title",
+    "char_tfidf_all",
+    "title_jaccard",
+    "desc_jaccard",
+    "bullet_jaccard",
+    "all_jaccard",
+    "title_query_coverage",
+    "all_query_coverage",
+    "title_contains_all_query",
+    "all_contains_all_query",
+    "char_title_jaccard",
+    "char_desc_jaccard",
+    "brand_in_query",
+    "brand_in_title",
+    "query_len",
+    "title_len",
+    "desc_len",
+    "len_ratio_title_query",
+    "exact_query_in_title",
+    "exact_query_in_all",
 ]
 
 
@@ -54,17 +68,25 @@ def read_esci(data_dir, max_rows=160000, locale="us"):
     prod = pd.read_parquet(products_path)
     if locale:
         if "product_locale" in ex.columns:
-            ex = ex[ex["product_locale"].astype(str).str.lower().eq(locale.lower())].copy()
+            ex = ex[
+                ex["product_locale"].astype(str).str.lower().eq(locale.lower())
+            ].copy()
         if "product_locale" in prod.columns:
-            prod = prod[prod["product_locale"].astype(str).str.lower().eq(locale.lower())].copy()
+            prod = prod[
+                prod["product_locale"].astype(str).str.lower().eq(locale.lower())
+            ].copy()
     if "small_version" in ex.columns:
         small = ex[ex["small_version"].astype(bool)].copy()
         if len(small) >= 10000:
             ex = small
     ex = ex.head(max_rows).copy()
     keep_prod = [
-        "product_id", "product_title", "product_description", "product_bullet_point",
-        "product_brand", "product_color",
+        "product_id",
+        "product_title",
+        "product_description",
+        "product_bullet_point",
+        "product_brand",
+        "product_color",
     ]
     keep_prod = [c for c in keep_prod if c in prod.columns]
     df = ex.merge(prod[keep_prod], on="product_id", how="left")
@@ -72,12 +94,23 @@ def read_esci(data_dir, max_rows=160000, locale="us"):
     df = df[df["esci_label"].isin(LABEL_TO_GAIN)].copy()
     df["gain"] = df["esci_label"].map(LABEL_TO_GAIN).astype(float)
     df["label_num"] = df["esci_label"].map(LABEL_TO_NUM).astype(int)
-    for c in ["query", "product_title", "product_description", "product_bullet_point", "product_brand", "product_color"]:
+    for c in [
+        "query",
+        "product_title",
+        "product_description",
+        "product_bullet_point",
+        "product_brand",
+        "product_color",
+    ]:
         if c in df.columns:
             df[c] = df[c].fillna("").astype(str)
         else:
             df[c] = ""
-    df["query_id_safe"] = df["query_id"].astype(str) if "query_id" in df.columns else df["query"].astype(str)
+    df["query_id_safe"] = (
+        df["query_id"].astype(str)
+        if "query_id" in df.columns
+        else df["query"].astype(str)
+    )
     return df, examples_path, products_path
 
 
@@ -89,7 +122,8 @@ def tokenize(text):
             cur.append(ch)
         else:
             if cur:
-                out.append("".join(cur)); cur = []
+                out.append("".join(cur))
+                cur = []
     if cur:
         out.append("".join(cur))
     return out
@@ -116,7 +150,7 @@ def char_ngrams(s, n=3):
     s = " ".join(s.split())
     if len(s) < n:
         return {s} if s else set()
-    return {s[i:i+n] for i in range(len(s) - n + 1)}
+    return {s[i : i + n] for i in range(len(s) - n + 1)}
 
 
 def add_lexical_features(df):
@@ -135,26 +169,35 @@ def add_lexical_features(df):
         q_char = char_ngrams(q)
         title_char = char_ngrams(title)
         desc_char = char_ngrams(desc)
-        rows.append({
-            "title_jaccard": jaccard(q_tok, title_tok),
-            "desc_jaccard": jaccard(q_tok, desc_tok),
-            "bullet_jaccard": jaccard(q_tok, bullet_tok),
-            "all_jaccard": jaccard(q_tok, all_tok),
-            "title_query_coverage": len(q_tok & title_tok) / max(len(q_tok), 1),
-            "all_query_coverage": len(q_tok & all_tok) / max(len(q_tok), 1),
-            "title_contains_all_query": contains_all(q_tok, title_tok),
-            "all_contains_all_query": contains_all(q_tok, all_tok),
-            "char_title_jaccard": jaccard(q_char, title_char),
-            "char_desc_jaccard": jaccard(q_char, desc_char),
-            "brand_in_query": float(bool(brand and str(brand).lower() in str(q).lower())),
-            "brand_in_title": float(bool(brand and str(brand).lower() in str(title).lower())),
-            "query_len": float(len(q_tok)),
-            "title_len": float(len(title_tok)),
-            "desc_len": float(len(desc_tok)),
-            "len_ratio_title_query": float(len(title_tok) / max(len(q_tok), 1)),
-            "exact_query_in_title": float(str(q).lower() in str(title).lower()),
-            "exact_query_in_all": float(str(q).lower() in (str(title) + " " + str(desc) + " " + str(bullet)).lower()),
-        })
+        rows.append(
+            {
+                "title_jaccard": jaccard(q_tok, title_tok),
+                "desc_jaccard": jaccard(q_tok, desc_tok),
+                "bullet_jaccard": jaccard(q_tok, bullet_tok),
+                "all_jaccard": jaccard(q_tok, all_tok),
+                "title_query_coverage": len(q_tok & title_tok) / max(len(q_tok), 1),
+                "all_query_coverage": len(q_tok & all_tok) / max(len(q_tok), 1),
+                "title_contains_all_query": contains_all(q_tok, title_tok),
+                "all_contains_all_query": contains_all(q_tok, all_tok),
+                "char_title_jaccard": jaccard(q_char, title_char),
+                "char_desc_jaccard": jaccard(q_char, desc_char),
+                "brand_in_query": float(
+                    bool(brand and str(brand).lower() in str(q).lower())
+                ),
+                "brand_in_title": float(
+                    bool(brand and str(brand).lower() in str(title).lower())
+                ),
+                "query_len": float(len(q_tok)),
+                "title_len": float(len(title_tok)),
+                "desc_len": float(len(desc_tok)),
+                "len_ratio_title_query": float(len(title_tok) / max(len(q_tok), 1)),
+                "exact_query_in_title": float(str(q).lower() in str(title).lower()),
+                "exact_query_in_all": float(
+                    str(q).lower()
+                    in (str(title) + " " + str(desc) + " " + str(bullet)).lower()
+                ),
+            }
+        )
     feat = pd.DataFrame(rows, index=df.index)
     return pd.concat([df.reset_index(drop=True), feat.reset_index(drop=True)], axis=1)
 
@@ -166,8 +209,22 @@ def fit_tfidf(train_df):
         + train_df["product_description"].astype(str).tolist()
         + train_df["product_bullet_point"].astype(str).tolist()
     )
-    word = TfidfVectorizer(analyzer="word", ngram_range=(1, 2), min_df=2, max_features=120000, sublinear_tf=True, norm="l2")
-    char = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=2, max_features=80000, sublinear_tf=True, norm="l2")
+    word = TfidfVectorizer(
+        analyzer="word",
+        ngram_range=(1, 2),
+        min_df=2,
+        max_features=120000,
+        sublinear_tf=True,
+        norm="l2",
+    )
+    char = TfidfVectorizer(
+        analyzer="char_wb",
+        ngram_range=(3, 5),
+        min_df=2,
+        max_features=80000,
+        sublinear_tf=True,
+        norm="l2",
+    )
     print("Fitting TF-IDF word vectorizer...")
     word.fit(corpus)
     print("Fitting TF-IDF char vectorizer...")
@@ -234,18 +291,22 @@ def high_rank_irrelevant_rate(group, score_col, k=10):
 def evaluate_ranking(df, score_col, k=10):
     vals = []
     for _, g in df.groupby("query_id_safe"):
-        vals.append({
-            "ndcg_at_10": ndcg_at_k(g, score_col, k),
-            "recall_at_10": recall_at_k(g, score_col, k),
-            "precision_at_10": precision_at_k(g, score_col, k),
-            "high_rank_irrelevant_rate": high_rank_irrelevant_rate(g, score_col, k),
-        })
+        vals.append(
+            {
+                "ndcg_at_10": ndcg_at_k(g, score_col, k),
+                "recall_at_10": recall_at_k(g, score_col, k),
+                "precision_at_10": precision_at_k(g, score_col, k),
+                "high_rank_irrelevant_rate": high_rank_irrelevant_rate(g, score_col, k),
+            }
+        )
     m = pd.DataFrame(vals)
     return {
         "ndcg_at_10": float(m["ndcg_at_10"].mean()),
         "recall_at_10": float(m["recall_at_10"].dropna().mean()),
         "precision_at_10": float(m["precision_at_10"].dropna().mean()),
-        "high_rank_irrelevant_rate": float(m["high_rank_irrelevant_rate"].dropna().mean()),
+        "high_rank_irrelevant_rate": float(
+            m["high_rank_irrelevant_rate"].dropna().mean()
+        ),
         "query_count": int(len(m)),
     }
 
@@ -267,15 +328,29 @@ def train_models(train_df):
     y_irrel = (train_df["gain"] <= 0).astype(int)
     y_label = train_df["label_num"].astype(int)
     print("Training relevance model...")
-    rel_model = Pipeline([("scale", StandardScaler()), ("clf", LogisticRegression(max_iter=500, class_weight="balanced"))])
+    rel_model = Pipeline(
+        [
+            ("scale", StandardScaler()),
+            ("clf", LogisticRegression(max_iter=500, class_weight="balanced")),
+        ]
+    )
     rel_model.fit(x, y_rel)
     print("Training overreach/irrelevant-risk model...")
-    irrel_model = Pipeline([("scale", StandardScaler()), ("clf", LogisticRegression(max_iter=500, class_weight="balanced"))])
+    irrel_model = Pipeline(
+        [
+            ("scale", StandardScaler()),
+            ("clf", LogisticRegression(max_iter=500, class_weight="balanced")),
+        ]
+    )
     irrel_model.fit(x, y_irrel)
     print("Training graded ESCI model...")
     graded_model = HistGradientBoostingClassifier(
-        max_iter=160, learning_rate=0.04, max_leaf_nodes=31,
-        min_samples_leaf=20, l2_regularization=0.02, random_state=42,
+        max_iter=160,
+        learning_rate=0.04,
+        max_leaf_nodes=31,
+        min_samples_leaf=20,
+        l2_regularization=0.02,
+        random_state=42,
     )
     graded_model.fit(x, y_label)
     return rel_model, irrel_model, graded_model
@@ -298,10 +373,17 @@ def add_model_scores(df, rel_model, irrel_model, graded_model):
 
 def add_scores(df):
     out = df.copy()
-    out["baseline_score"] = 0.70 * out["tfidf_title"] + 0.20 * out["char_tfidf_title"] + 0.10 * out["tfidf_all"]
+    out["baseline_score"] = (
+        0.70 * out["tfidf_title"]
+        + 0.20 * out["char_tfidf_title"]
+        + 0.10 * out["tfidf_all"]
+    )
     out["expansion_gain"] = (
-        0.30 * out["tfidf_desc"] + 0.25 * out["tfidf_bullet"] + 0.20 * out["char_tfidf_all"]
-        + 0.15 * out["all_query_coverage"] + 0.10 * out["brand_in_title"]
+        0.30 * out["tfidf_desc"]
+        + 0.25 * out["tfidf_bullet"]
+        + 0.20 * out["char_tfidf_all"]
+        + 0.15 * out["all_query_coverage"]
+        + 0.10 * out["brand_in_title"]
     )
     out["lexical_overreach_risk"] = (
         0.35 * (1.0 - out["title_query_coverage"].clip(0, 1))
@@ -332,21 +414,47 @@ def tune_abc(val_df, baseline_metrics):
                 for d in [0.0, 0.10, 0.20, 0.35, 0.50, 0.70]:
                     scored = apply_candidate_score(val_df, a, b, g, d)
                     m = evaluate_ranking(scored, "abc_score")
-                    recall_drop = max(0.0, baseline_metrics["recall_at_10"] - m["recall_at_10"])
-                    irrel_increase = max(0.0, m["high_rank_irrelevant_rate"] - baseline_metrics["high_rank_irrelevant_rate"])
-                    ndcg_drop = max(0.0, baseline_metrics["ndcg_at_10"] - m["ndcg_at_10"])
-                    score = m["ndcg_at_10"] + 0.25 * m["recall_at_10"] - 0.35 * m["high_rank_irrelevant_rate"] - recall_drop - irrel_increase - 0.50 * ndcg_drop
-                    candidates.append({
-                        "alpha_expansion": a, "beta_expected_gain": b, "gamma_relevance": g, "delta_overreach": d,
-                        "metrics": m, "validation_selection_score": float(score),
-                    })
+                    recall_drop = max(
+                        0.0, baseline_metrics["recall_at_10"] - m["recall_at_10"]
+                    )
+                    irrel_increase = max(
+                        0.0,
+                        m["high_rank_irrelevant_rate"]
+                        - baseline_metrics["high_rank_irrelevant_rate"],
+                    )
+                    ndcg_drop = max(
+                        0.0, baseline_metrics["ndcg_at_10"] - m["ndcg_at_10"]
+                    )
+                    score = (
+                        m["ndcg_at_10"]
+                        + 0.25 * m["recall_at_10"]
+                        - 0.35 * m["high_rank_irrelevant_rate"]
+                        - recall_drop
+                        - irrel_increase
+                        - 0.50 * ndcg_drop
+                    )
+                    candidates.append(
+                        {
+                            "alpha_expansion": a,
+                            "beta_expected_gain": b,
+                            "gamma_relevance": g,
+                            "delta_overreach": d,
+                            "metrics": m,
+                            "validation_selection_score": float(score),
+                        }
+                    )
     guarded = [
-        c for c in candidates
+        c
+        for c in candidates
         if c["metrics"]["ndcg_at_10"] >= baseline_metrics["ndcg_at_10"]
         and c["metrics"]["recall_at_10"] >= baseline_metrics["recall_at_10"]
-        and c["metrics"]["high_rank_irrelevant_rate"] <= baseline_metrics["high_rank_irrelevant_rate"]
+        and c["metrics"]["high_rank_irrelevant_rate"]
+        <= baseline_metrics["high_rank_irrelevant_rate"]
     ]
-    return max(guarded if guarded else candidates, key=lambda c: c["validation_selection_score"]), candidates
+    return max(
+        guarded if guarded else candidates,
+        key=lambda c: c["validation_selection_score"],
+    ), candidates
 
 
 def main():
@@ -356,14 +464,21 @@ def main():
     max_rows = int(os.environ.get("ESCI_ABC_MAX_ROWS", "160000"))
     locale = os.environ.get("ESCI_ABC_LOCALE", "us")
     start = time.time()
-    df, examples_path, products_path = read_esci(data_dir, max_rows=max_rows, locale=locale)
+    df, examples_path, products_path = read_esci(
+        data_dir, max_rows=max_rows, locale=locale
+    )
     print("Loaded rows:", len(df))
     print("Queries:", df["query_id_safe"].nunique())
     print("Label distribution:")
     print(df["esci_label"].value_counts())
     train_df, val_df, test_df = split_by_query(df)
     print("Split rows:", len(train_df), len(val_df), len(test_df))
-    print("Split queries:", train_df["query_id_safe"].nunique(), val_df["query_id_safe"].nunique(), test_df["query_id_safe"].nunique())
+    print(
+        "Split queries:",
+        train_df["query_id_safe"].nunique(),
+        val_df["query_id_safe"].nunique(),
+        test_df["query_id_safe"].nunique(),
+    )
     word, char = fit_tfidf(train_df)
     train_df = add_lexical_features(add_tfidf_scores(train_df, word, char))
     val_df = add_lexical_features(add_tfidf_scores(val_df, word, char))
@@ -378,16 +493,34 @@ def main():
     baseline_val = evaluate_ranking(val_df, "baseline_score")
     baseline_test = evaluate_ranking(test_df, "baseline_score")
     selected, candidates = tune_abc(val_df, baseline_val)
-    val_scored = apply_candidate_score(val_df, selected["alpha_expansion"], selected["beta_expected_gain"], selected["gamma_relevance"], selected["delta_overreach"])
-    test_scored = apply_candidate_score(test_df, selected["alpha_expansion"], selected["beta_expected_gain"], selected["gamma_relevance"], selected["delta_overreach"])
+    val_scored = apply_candidate_score(
+        val_df,
+        selected["alpha_expansion"],
+        selected["beta_expected_gain"],
+        selected["gamma_relevance"],
+        selected["delta_overreach"],
+    )
+    test_scored = apply_candidate_score(
+        test_df,
+        selected["alpha_expansion"],
+        selected["beta_expected_gain"],
+        selected["gamma_relevance"],
+        selected["delta_overreach"],
+    )
     abc_val = evaluate_ranking(val_scored, "abc_score")
     abc_test = evaluate_ranking(test_scored, "abc_score")
     checks = {
-        "ndcg_not_worse_than_baseline": abc_test["ndcg_at_10"] >= baseline_test["ndcg_at_10"] - 0.0005,
-        "recall_not_worse_than_baseline": abc_test["recall_at_10"] >= baseline_test["recall_at_10"] - 0.0005,
-        "high_rank_irrelevant_not_worse": abc_test["high_rank_irrelevant_rate"] <= baseline_test["high_rank_irrelevant_rate"] + 0.0005,
+        "ndcg_not_worse_than_baseline": abc_test["ndcg_at_10"]
+        >= baseline_test["ndcg_at_10"] - 0.0005,
+        "recall_not_worse_than_baseline": abc_test["recall_at_10"]
+        >= baseline_test["recall_at_10"] - 0.0005,
+        "high_rank_irrelevant_not_worse": abc_test["high_rank_irrelevant_rate"]
+        <= baseline_test["high_rank_irrelevant_rate"] + 0.0005,
         "abc_has_expansion_or_overreach_control": (
-            selected["alpha_expansion"] > 0 or selected["delta_overreach"] > 0 or selected["beta_expected_gain"] > 0 or selected["gamma_relevance"] > 0
+            selected["alpha_expansion"] > 0
+            or selected["delta_overreach"] > 0
+            or selected["beta_expected_gain"] > 0
+            or selected["gamma_relevance"] > 0
         ),
     }
     status = "PASS" if all(checks.values()) else "ITERATE"
@@ -395,29 +528,66 @@ def main():
         "dataset": "Amazon ESCI Shopping Queries local public-data sample",
         "method": "ABC-style candidate expansion and overreach correction reranker",
         "claim_boundary": "Local public-data validation only. No proprietary Amazon data, production traffic, customer data, or deployment is claimed.",
-        "source_files": {"examples": str(examples_path), "products": str(products_path)},
-        "rows": int(len(df)), "queries": int(df["query_id_safe"].nunique()), "locale": locale,
-        "label_distribution": {str(k): int(v) for k, v in df["esci_label"].value_counts().to_dict().items()},
-        "split": {
-            "train_rows": int(len(train_df)), "val_rows": int(len(val_df)), "test_rows": int(len(test_df)),
-            "train_queries": int(train_df["query_id_safe"].nunique()), "val_queries": int(val_df["query_id_safe"].nunique()), "test_queries": int(test_df["query_id_safe"].nunique()),
+        "source_files": {
+            "examples": str(examples_path),
+            "products": str(products_path),
         },
-        "baseline_validation": baseline_val, "abc_validation": abc_val,
-        "baseline_test": baseline_test, "abc_test": abc_test,
+        "rows": int(len(df)),
+        "queries": int(df["query_id_safe"].nunique()),
+        "locale": locale,
+        "label_distribution": {
+            str(k): int(v) for k, v in df["esci_label"].value_counts().to_dict().items()
+        },
+        "split": {
+            "train_rows": int(len(train_df)),
+            "val_rows": int(len(val_df)),
+            "test_rows": int(len(test_df)),
+            "train_queries": int(train_df["query_id_safe"].nunique()),
+            "val_queries": int(val_df["query_id_safe"].nunique()),
+            "test_queries": int(test_df["query_id_safe"].nunique()),
+        },
+        "baseline_validation": baseline_val,
+        "abc_validation": abc_val,
+        "baseline_test": baseline_test,
+        "abc_test": abc_test,
         "selected_parameters": {
-            "alpha_expansion": selected["alpha_expansion"], "beta_expected_gain": selected["beta_expected_gain"],
-            "gamma_relevance": selected["gamma_relevance"], "delta_overreach": selected["delta_overreach"],
+            "alpha_expansion": selected["alpha_expansion"],
+            "beta_expected_gain": selected["beta_expected_gain"],
+            "gamma_relevance": selected["gamma_relevance"],
+            "delta_overreach": selected["delta_overreach"],
         },
         "release_decision": {
-            "status": status, "checks": checks,
-            "reason": "ABC-style reranker passed NDCG, recall, and high-rank irrelevant guardrails." if status == "PASS" else "ABC-style reranker trained successfully but did not pass all ranking/overreach guardrails.",
+            "status": status,
+            "checks": checks,
+            "reason": "ABC-style reranker passed NDCG, recall, and high-rank irrelevant guardrails."
+            if status == "PASS"
+            else "ABC-style reranker trained successfully but did not pass all ranking/overreach guardrails.",
         },
         "runtime_seconds": time.time() - start,
     }
-    (OUTPUTS / "esci_abc_reranker_v2_metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-    pd.DataFrame(candidates).to_json(OUTPUTS / "esci_abc_reranker_v2_candidates.json", orient="records", indent=2)
-    cols = ["query_id_safe", "query", "product_id", "product_title", "esci_label", "baseline_score", "abc_score", "expansion_gain", "p_relevant", "p_irrelevant", "expected_gain", "lexical_overreach_risk"]
-    test_scored[[c for c in cols if c in test_scored.columns]].head(5000).to_csv(OUTPUTS / "esci_abc_reranker_v2_scored_sample.csv", index=False)
+    (OUTPUTS / "esci_abc_reranker_v2_metrics.json").write_text(
+        json.dumps(result, indent=2), encoding="utf-8"
+    )
+    pd.DataFrame(candidates).to_json(
+        OUTPUTS / "esci_abc_reranker_v2_candidates.json", orient="records", indent=2
+    )
+    cols = [
+        "query_id_safe",
+        "query",
+        "product_id",
+        "product_title",
+        "esci_label",
+        "baseline_score",
+        "abc_score",
+        "expansion_gain",
+        "p_relevant",
+        "p_irrelevant",
+        "expected_gain",
+        "lexical_overreach_risk",
+    ]
+    test_scored[[c for c in cols if c in test_scored.columns]].head(5000).to_csv(
+        OUTPUTS / "esci_abc_reranker_v2_scored_sample.csv", index=False
+    )
     report = f"""# ABC-style ESCI Reranker v2 Public-Data Validation Report
 
 ## Claim boundary
@@ -435,32 +605,32 @@ This experiment adapts the ABC idea of candidate expansion plus learned overreac
 
 ## Data summary
 
-- Rows: {result['rows']}
-- Queries: {result['queries']}
+- Rows: {result["rows"]}
+- Queries: {result["queries"]}
 - Locale: `{locale}`
-- Train / validation / test queries: {result['split']['train_queries']} / {result['split']['val_queries']} / {result['split']['test_queries']}
+- Train / validation / test queries: {result["split"]["train_queries"]} / {result["split"]["val_queries"]} / {result["split"]["test_queries"]}
 
 ## Selected parameters
 
-- alpha expansion: {selected['alpha_expansion']}
-- beta expected gain: {selected['beta_expected_gain']}
-- gamma relevance: {selected['gamma_relevance']}
-- delta overreach: {selected['delta_overreach']}
+- alpha expansion: {selected["alpha_expansion"]}
+- beta expected gain: {selected["beta_expected_gain"]}
+- gamma relevance: {selected["gamma_relevance"]}
+- delta overreach: {selected["delta_overreach"]}
 
 ## Test comparison
 
 | Metric | TF-IDF baseline | ABC-style reranker |
 |---|---:|---:|
-| NDCG@10 | {baseline_test['ndcg_at_10']:.6f} | {abc_test['ndcg_at_10']:.6f} |
-| Recall@10 | {baseline_test['recall_at_10']:.6f} | {abc_test['recall_at_10']:.6f} |
-| Precision@10 | {baseline_test['precision_at_10']:.6f} | {abc_test['precision_at_10']:.6f} |
-| High-rank irrelevant rate | {baseline_test['high_rank_irrelevant_rate']:.6f} | {abc_test['high_rank_irrelevant_rate']:.6f} |
+| NDCG@10 | {baseline_test["ndcg_at_10"]:.6f} | {abc_test["ndcg_at_10"]:.6f} |
+| Recall@10 | {baseline_test["recall_at_10"]:.6f} | {abc_test["recall_at_10"]:.6f} |
+| Precision@10 | {baseline_test["precision_at_10"]:.6f} | {abc_test["precision_at_10"]:.6f} |
+| High-rank irrelevant rate | {baseline_test["high_rank_irrelevant_rate"]:.6f} | {abc_test["high_rank_irrelevant_rate"]:.6f} |
 
 ## Release decision
 
 - Status: **{status}**
 - Checks: {checks}
-- Reason: {result['release_decision']['reason']}
+- Reason: {result["release_decision"]["reason"]}
 
 ## Interpretation
 

@@ -1,5 +1,6 @@
 import numpy as np
-from src.common.metrics import expected_calibration_error, classification_report_dict
+
+from src.common.metrics import classification_report_dict, expected_calibration_error
 
 
 def test_ece_in_range():

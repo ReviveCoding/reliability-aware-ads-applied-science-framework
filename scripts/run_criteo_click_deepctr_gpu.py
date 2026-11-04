@@ -1,23 +1,20 @@
-import os
 import json
+import os
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-from sklearn.metrics import (
-    roc_auc_score,
-    average_precision_score,
-    log_loss,
-    brier_score_loss,
-)
-from sklearn.model_selection import train_test_split
-
 import torch
 import torch.nn as nn
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+)
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -51,7 +48,11 @@ def read_one_file(path):
         df = pd.read_csv(path, sep="\t", header=None)
 
     if df.shape[1] == 40:
-        df.columns = ["label"] + [f"I{i}" for i in range(1, 14)] + [f"C{i}" for i in range(1, 27)]
+        df.columns = (
+            ["label"]
+            + [f"I{i}" for i in range(1, 14)]
+            + [f"C{i}" for i in range(1, 27)]
+        )
     else:
         df.columns = [f"col_{i}" for i in range(df.shape[1])]
         df = df.rename(columns={"col_0": "label"})
@@ -83,16 +84,22 @@ def load_criteo_click_sample(data_dir, max_rows=250000, max_files=6):
 def detect_target(df):
     for col in ["label", "click", "clicked", "target", "y"]:
         if col in df.columns:
-            vals = set(pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10])
-            if vals.issubset({0, 1, 0.0, 1.0}):
+            vals = set(
+                pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10]
+            )
+            if vals.issubset({0, 1}):
                 return col
 
     for col in df.columns:
-        vals = set(pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10])
-        if vals and vals.issubset({0, 1, 0.0, 1.0}):
+        vals = set(
+            pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10]
+        )
+        if vals and vals.issubset({0, 1}):
             return col
 
-    raise ValueError(f"Could not detect binary click target. Columns: {df.columns.tolist()}")
+    raise ValueError(
+        f"Could not detect binary click target. Columns: {df.columns.tolist()}"
+    )
 
 
 def detect_features(df, target_col):
@@ -101,16 +108,18 @@ def detect_features(df, target_col):
     target_col = str(target_col).strip()
 
     categorical_cols = [
-        c for c in cols
-        if c != target_col and (
-            c.lower().startswith("categorical_feature")
-            or c.lower().startswith("c")
-        )
+        c
+        for c in cols
+        if c != target_col
+        and (c.lower().startswith("categorical_feature") or c.lower().startswith("c"))
     ]
 
     numeric_cols = [
-        c for c in cols
-        if c != target_col and c not in categorical_cols and (
+        c
+        for c in cols
+        if c != target_col
+        and c not in categorical_cols
+        and (
             c.lower().startswith("integer_feature")
             or c.lower().startswith("i")
             or pd.to_numeric(df[c], errors="coerce").notna().mean() > 0.95
@@ -119,7 +128,9 @@ def detect_features(df, target_col):
 
     # Preserve Criteo-style structure and keep local training bounded.
     numeric_cols = numeric_cols[:13] if len(numeric_cols) >= 13 else numeric_cols[:20]
-    categorical_cols = categorical_cols[:26] if len(categorical_cols) >= 26 else categorical_cols[:30]
+    categorical_cols = (
+        categorical_cols[:26] if len(categorical_cols) >= 26 else categorical_cols[:30]
+    )
 
     if not numeric_cols and not categorical_cols:
         raise ValueError("No usable feature columns detected.")
@@ -143,7 +154,11 @@ def numeric_frame(df, numeric_cols):
     if not numeric_cols:
         return np.zeros((len(df), 0), dtype=np.float32)
 
-    x = df[numeric_cols].apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan)
+    x = (
+        df[numeric_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+    )
     return x.to_numpy(dtype=np.float32)
 
 
@@ -162,24 +177,36 @@ def standardize_train_val_test(x_num, train_idx, val_idx, test_idx):
 
 
 class DeepCTRModel(nn.Module):
-    def __init__(self, num_numeric, num_categorical, hash_size, emb_dim=16, hidden=(512, 256, 128), dropout=0.15):
+    def __init__(
+        self,
+        num_numeric,
+        num_categorical,
+        hash_size,
+        emb_dim=16,
+        hidden=(512, 256, 128),
+        dropout=0.15,
+    ):
         super().__init__()
         self.num_categorical = num_categorical
-        self.embeddings = nn.ModuleList([
-            nn.Embedding(hash_size + 1, emb_dim, padding_idx=0)
-            for _ in range(num_categorical)
-        ])
+        self.embeddings = nn.ModuleList(
+            [
+                nn.Embedding(hash_size + 1, emb_dim, padding_idx=0)
+                for _ in range(num_categorical)
+            ]
+        )
 
         in_dim = num_numeric + num_categorical * emb_dim
         layers = []
         prev = in_dim
         for h in hidden:
-            layers.extend([
-                nn.Linear(prev, h),
-                nn.BatchNorm1d(h),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-            ])
+            layers.extend(
+                [
+                    nn.Linear(prev, h),
+                    nn.BatchNorm1d(h),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                ]
+            )
             prev = h
         layers.append(nn.Linear(prev, 1))
         self.mlp = nn.Sequential(*layers)
@@ -277,8 +304,12 @@ def train_one_config(config, x_num, x_cat, y, train_idx, val_idx, test_idx, devi
     pin_memory = device.type == "cuda"
 
     train_loader = make_loader(x_num, x_cat, y, train_idx, batch_size, True, pin_memory)
-    val_loader = make_loader(x_num, x_cat, y, val_idx, batch_size * 2, False, pin_memory)
-    test_loader = make_loader(x_num, x_cat, y, test_idx, batch_size * 2, False, pin_memory)
+    val_loader = make_loader(
+        x_num, x_cat, y, val_idx, batch_size * 2, False, pin_memory
+    )
+    test_loader = make_loader(
+        x_num, x_cat, y, test_idx, batch_size * 2, False, pin_memory
+    )
 
     model = DeepCTRModel(
         num_numeric=x_num.shape[1],
@@ -337,12 +368,16 @@ def train_one_config(config, x_num, x_cat, y, train_idx, val_idx, test_idx, devi
             **{f"val_{k}": v for k, v in val_metrics.items()},
         }
         history.append(row)
-        print(f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_metrics.get('roc_auc')} val_logloss={val_metrics['log_loss']:.6f}")
+        print(
+            f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_metrics.get('roc_auc')} val_logloss={val_metrics['log_loss']:.6f}"
+        )
 
         val_auc = val_metrics.get("roc_auc") or -1.0
         if val_auc > best_val_auc:
             best_val_auc = val_auc
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {
+                k: v.detach().cpu().clone() for k, v in model.state_dict().items()
+            }
 
     if best_state is not None:
         model.load_state_dict(best_state)
@@ -447,7 +482,9 @@ def main():
         print("GPU:", torch.cuda.get_device_name(0))
         print("Torch CUDA build:", torch.version.cuda)
 
-    raw, source_files = load_criteo_click_sample(data_dir, max_rows=max_rows, max_files=max_files)
+    raw, source_files = load_criteo_click_sample(
+        data_dir, max_rows=max_rows, max_files=max_files
+    )
     target_col = detect_target(raw)
 
     raw.columns = [str(c).strip() for c in raw.columns]
@@ -487,7 +524,11 @@ def main():
     runs = []
     for config in configs:
         print(f"Training config: {config['name']}")
-        runs.append(train_one_config(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device))
+        runs.append(
+            train_one_config(
+                config, x_num, x_cat, y, train_idx, val_idx, test_idx, device
+            )
+        )
 
     best = max(runs, key=lambda r: r["calibrated_metrics"].get("roc_auc") or -1.0)
 
@@ -500,9 +541,12 @@ def main():
     checks = {}
     if baseline_lr:
         checks = {
-            "deep_auc_beats_lr_by_0_002": (deep_cal.get("roc_auc") or 0.0) >= (baseline_lr.get("roc_auc") or 0.0) + 0.002,
-            "deep_pr_auc_not_worse_than_lr": (deep_cal.get("pr_auc") or 0.0) >= (baseline_lr.get("pr_auc") or 0.0) - 0.0005,
-            "deep_log_loss_not_worse_than_lr": deep_cal["log_loss"] <= baseline_lr["log_loss"] * 1.01,
+            "deep_auc_beats_lr_by_0_002": (deep_cal.get("roc_auc") or 0.0)
+            >= (baseline_lr.get("roc_auc") or 0.0) + 0.002,
+            "deep_pr_auc_not_worse_than_lr": (deep_cal.get("pr_auc") or 0.0)
+            >= (baseline_lr.get("pr_auc") or 0.0) - 0.0005,
+            "deep_log_loss_not_worse_than_lr": deep_cal["log_loss"]
+            <= baseline_lr["log_loss"] * 1.01,
             "calibration_improves_raw_deep_ece": deep_cal["ece"] <= deep_raw["ece"],
         }
     else:
@@ -523,7 +567,9 @@ def main():
         "categorical_feature_count": len(categorical_cols),
         "hash_size": hash_size,
         "device": str(device),
-        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "gpu_name": torch.cuda.get_device_name(0)
+        if torch.cuda.is_available()
+        else None,
         "torch_version": torch.__version__,
         "torch_cuda_build": torch.version.cuda,
         "train_rows": int(len(train_idx)),
@@ -627,7 +673,9 @@ This run uses a local public Criteo Click Logs sample and local GPU training onl
 The GPU DeepCTR model uses categorical embeddings for the 26 Criteo categorical features and dense numeric inputs for the 13 integer features. Temperature scaling is applied as a post-training calibration step. Promotion requires both ranking quality and calibration discipline rather than GPU training alone.
 """
 
-    (REPORTS / "criteo_click_deepctr_gpu_report.md").write_text(report, encoding="utf-8")
+    (REPORTS / "criteo_click_deepctr_gpu_report.md").write_text(
+        report, encoding="utf-8"
+    )
 
     print("GPU DeepCTR public-data validation finished.")
     print("Report:", REPORTS / "criteo_click_deepctr_gpu_report.md")

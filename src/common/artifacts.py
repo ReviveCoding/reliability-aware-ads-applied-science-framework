@@ -1,7 +1,9 @@
-from pathlib import Path
 import json
 import shutil
+from pathlib import Path
+
 import pandas as pd
+
 
 class ArtifactManager:
     def __init__(self, root="."):
@@ -27,7 +29,11 @@ class ArtifactManager:
         lines = [f"# {title}", ""]
         for header, body in sections:
             lines += [f"## {header}", ""]
-            lines.append(body.to_markdown(index=False) if isinstance(body, pd.DataFrame) else str(body))
+            lines.append(
+                body.to_markdown(index=False)
+                if isinstance(body, pd.DataFrame)
+                else str(body)
+            )
             lines.append("")
         path.write_text("\n".join(lines), encoding="utf-8")
         return path
@@ -36,5 +42,7 @@ class ArtifactManager:
         for dname in ["reports", "outputs"]:
             src = self.root / dname
             dst = self.root / "sample_outputs" / dname
-            if dst.exists(): shutil.rmtree(dst)
-            if src.exists(): shutil.copytree(src, dst)
+            if dst.exists():
+                shutil.rmtree(dst)
+            if src.exists():
+                shutil.copytree(src, dst)

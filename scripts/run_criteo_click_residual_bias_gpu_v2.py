@@ -1,17 +1,16 @@
-import os
 import json
+import os
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold, train_test_split
-import torch
-import torch.nn as nn
 
 # Reuse the tested v1 loader/model/metric utilities.
 import run_criteo_click_residual_bias_gpu as base
-
+import torch
+import torch.nn as nn
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -20,7 +19,16 @@ REPORTS.mkdir(exist_ok=True)
 OUTPUTS.mkdir(exist_ok=True)
 
 
-def fit_lr_oof_and_final(df, numeric_cols, categorical_cols, target_col, train_idx, val_idx, test_idx, n_folds=3):
+def fit_lr_oof_and_final(
+    df,
+    numeric_cols,
+    categorical_cols,
+    target_col,
+    train_idx,
+    val_idx,
+    test_idx,
+    n_folds=3,
+):
     features = numeric_cols + categorical_cols
     train = df.iloc[train_idx]
     val = df.iloc[val_idx]
@@ -30,37 +38,66 @@ def fit_lr_oof_and_final(df, numeric_cols, categorical_cols, target_col, train_i
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
 
     start = time.time()
-    for fold, (tr_rel, hold_rel) in enumerate(skf.split(train[features], train[target_col]), start=1):
+    for fold, (tr_rel, hold_rel) in enumerate(
+        skf.split(train[features], train[target_col]), start=1
+    ):
         print(f"Training LR OOF fold {fold}/{n_folds}...")
-        pipe = base.Pipeline([
-            ("pre", base.ColumnTransformer(
-                transformers=[
-                    ("num", base.Pipeline([
-                        ("impute", base.SimpleImputer(strategy="median")),
-                        ("scale", base.StandardScaler(with_mean=False)),
-                    ]), numeric_cols),
-                    ("cat", base.safe_ohe(), categorical_cols),
-                ],
-                sparse_threshold=0.3,
-            )),
-            ("model", base.LogisticRegression(max_iter=300, solver="saga")),
-        ])
+        pipe = base.Pipeline(
+            [
+                (
+                    "pre",
+                    base.ColumnTransformer(
+                        transformers=[
+                            (
+                                "num",
+                                base.Pipeline(
+                                    [
+                                        (
+                                            "impute",
+                                            base.SimpleImputer(strategy="median"),
+                                        ),
+                                        ("scale", base.StandardScaler(with_mean=False)),
+                                    ]
+                                ),
+                                numeric_cols,
+                            ),
+                            ("cat", base.safe_ohe(), categorical_cols),
+                        ],
+                        sparse_threshold=0.3,
+                    ),
+                ),
+                ("model", base.LogisticRegression(max_iter=300, solver="saga")),
+            ]
+        )
         pipe.fit(train.iloc[tr_rel][features], train.iloc[tr_rel][target_col])
-        oof_train_prob[hold_rel] = pipe.predict_proba(train.iloc[hold_rel][features])[:, 1]
+        oof_train_prob[hold_rel] = pipe.predict_proba(train.iloc[hold_rel][features])[
+            :, 1
+        ]
 
-    final_pipe = base.Pipeline([
-        ("pre", base.ColumnTransformer(
-            transformers=[
-                ("num", base.Pipeline([
-                    ("impute", base.SimpleImputer(strategy="median")),
-                    ("scale", base.StandardScaler(with_mean=False)),
-                ]), numeric_cols),
-                ("cat", base.safe_ohe(), categorical_cols),
-            ],
-            sparse_threshold=0.3,
-        )),
-        ("model", base.LogisticRegression(max_iter=300, solver="saga")),
-    ])
+    final_pipe = base.Pipeline(
+        [
+            (
+                "pre",
+                base.ColumnTransformer(
+                    transformers=[
+                        (
+                            "num",
+                            base.Pipeline(
+                                [
+                                    ("impute", base.SimpleImputer(strategy="median")),
+                                    ("scale", base.StandardScaler(with_mean=False)),
+                                ]
+                            ),
+                            numeric_cols,
+                        ),
+                        ("cat", base.safe_ohe(), categorical_cols),
+                    ],
+                    sparse_threshold=0.3,
+                ),
+            ),
+            ("model", base.LogisticRegression(max_iter=300, solver="saga")),
+        ]
+    )
     final_pipe.fit(train[features], train[target_col])
 
     train_prob_final = final_pipe.predict_proba(train[features])[:, 1]
@@ -84,12 +121,20 @@ def clipped_delta(raw_delta, delta_clip):
     return delta_clip * np.tanh(raw_delta / max(delta_clip, 1e-6))
 
 
-def train_safe_residual(config, x_num, x_cat, y, base_logit_all, train_idx, val_idx, test_idx, device):
+def train_safe_residual(
+    config, x_num, x_cat, y, base_logit_all, train_idx, val_idx, test_idx, device
+):
     pin_memory = device.type == "cuda"
     batch_size = int(config["batch_size"])
-    train_loader = base.make_loader(x_num, x_cat, y, base_logit_all, train_idx, batch_size, True, pin_memory)
-    val_loader = base.make_loader(x_num, x_cat, y, base_logit_all, val_idx, batch_size * 2, False, pin_memory)
-    test_loader = base.make_loader(x_num, x_cat, y, base_logit_all, test_idx, batch_size * 2, False, pin_memory)
+    train_loader = base.make_loader(
+        x_num, x_cat, y, base_logit_all, train_idx, batch_size, True, pin_memory
+    )
+    val_loader = base.make_loader(
+        x_num, x_cat, y, base_logit_all, val_idx, batch_size * 2, False, pin_memory
+    )
+    test_loader = base.make_loader(
+        x_num, x_cat, y, base_logit_all, test_idx, batch_size * 2, False, pin_memory
+    )
 
     model = base.ResidualDeepFM(
         num_numeric=x_num.shape[1],
@@ -100,10 +145,16 @@ def train_safe_residual(config, x_num, x_cat, y, base_logit_all, train_idx, val_
         dropout=float(config["dropout"]),
     ).to(device)
 
-    opt = torch.optim.AdamW(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+    opt = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(config["lr"]),
+        weight_decay=float(config["weight_decay"]),
+    )
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=int(config["epochs"]))
     loss_fn = nn.BCEWithLogitsLoss()
-    scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda" and config.get("amp", True)))
+    scaler = torch.amp.GradScaler(
+        "cuda", enabled=(device.type == "cuda" and config.get("amp", True))
+    )
 
     delta_l2 = float(config["delta_l2"])
     delta_clip = float(config["delta_clip"])
@@ -121,7 +172,9 @@ def train_safe_residual(config, x_num, x_cat, y, base_logit_all, train_idx, val_
             base_b = base_b.to(device, non_blocking=True)
 
             opt.zero_grad(set_to_none=True)
-            with torch.amp.autocast("cuda", enabled=(device.type == "cuda" and config.get("amp", True))):
+            with torch.amp.autocast(
+                "cuda", enabled=(device.type == "cuda" and config.get("amp", True))
+            ):
                 raw_delta = model(x_num_b, x_cat_b)
                 delta = delta_clip * torch.tanh(raw_delta / max(delta_clip, 1e-6))
                 logits = base_b + delta
@@ -155,13 +208,17 @@ def train_safe_residual(config, x_num, x_cat, y, base_logit_all, train_idx, val_
             "val_selection_score": float(score),
         }
         history.append(row)
-        print(f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_m.get('roc_auc'):.6f} val_pr={val_m.get('pr_auc'):.6f} val_logloss={val_m['log_loss']:.6f} mean_abs_delta={row['mean_abs_delta_val']:.6f}")
+        print(
+            f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_m.get('roc_auc'):.6f} val_pr={val_m.get('pr_auc'):.6f} val_logloss={val_m['log_loss']:.6f} mean_abs_delta={row['mean_abs_delta_val']:.6f}"
+        )
 
         if score > best_score:
             best_score = score
             best_epoch = epoch
             bad = 0
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {
+                k: v.detach().cpu().clone() for k, v in model.state_dict().items()
+            }
         else:
             bad += 1
         if bad >= int(config["patience"]):
@@ -207,7 +264,9 @@ def fit_temperature_from_logits(logits, labels, device):
     return float(np.clip(torch.exp(log_temp).detach().cpu().numpy()[0], 0.2, 5.0))
 
 
-def sweep_safe_lambda(val_y, test_y, val_base, test_base, val_delta, test_delta, lr_val_m, device):
+def sweep_safe_lambda(
+    val_y, test_y, val_base, test_base, val_delta, test_delta, lr_val_m, device
+):
     candidates = []
     for lam in np.linspace(0.0, 0.35, 36):
         val_logits = val_base + lam * val_delta
@@ -221,7 +280,8 @@ def sweep_safe_lambda(val_y, test_y, val_base, test_base, val_delta, test_delta,
 
         use_temp = (
             val_temp["log_loss"] <= val_raw["log_loss"]
-            and (val_temp.get("pr_auc") or 0.0) >= (val_raw.get("pr_auc") or 0.0) - 1e-12
+            and (val_temp.get("pr_auc") or 0.0)
+            >= (val_raw.get("pr_auc") or 0.0) - 1e-12
         )
         val_m = val_temp if use_temp else val_raw
         test_m = test_temp if use_temp else test_raw
@@ -241,22 +301,27 @@ def sweep_safe_lambda(val_y, test_y, val_base, test_base, val_delta, test_delta,
             - 0.10 * val_m["ece"]
             - 10.0 * violations
         )
-        candidates.append({
-            "lambda": float(lam),
-            "temperature": float(temp),
-            "used_temperature": bool(use_temp),
-            "constraint_violations": int(violations),
-            "val_metrics": val_m,
-            "test_metrics": test_m,
-            "val_raw_metrics": val_raw,
-            "test_raw_metrics": test_raw,
-            "val_temperature_metrics": val_temp,
-            "test_temperature_metrics": test_temp,
-            "validation_selection_score": float(score),
-        })
+        candidates.append(
+            {
+                "lambda": float(lam),
+                "temperature": float(temp),
+                "used_temperature": bool(use_temp),
+                "constraint_violations": int(violations),
+                "val_metrics": val_m,
+                "test_metrics": test_m,
+                "val_raw_metrics": val_raw,
+                "test_raw_metrics": test_raw,
+                "val_temperature_metrics": val_temp,
+                "test_temperature_metrics": test_temp,
+                "validation_selection_score": float(score),
+            }
+        )
 
     constrained = [c for c in candidates if c["constraint_violations"] == 0]
-    return max(constrained if constrained else candidates, key=lambda x: x["validation_selection_score"]), candidates
+    return max(
+        constrained if constrained else candidates,
+        key=lambda x: x["validation_selection_score"],
+    ), candidates
 
 
 def load_deepfm_v2_champion():
@@ -270,13 +335,15 @@ def load_deepfm_v2_champion():
 def compare_metric_count(a, b):
     if not b:
         return None
-    return sum([
-        (a.get("roc_auc") or 0.0) >= (b.get("roc_auc") or 0.0),
-        (a.get("pr_auc") or 0.0) >= (b.get("pr_auc") or 0.0),
-        a.get("log_loss", 999.0) <= b.get("log_loss", 999.0),
-        a.get("brier", 999.0) <= b.get("brier", 999.0),
-        a.get("ece", 999.0) <= b.get("ece", 999.0),
-    ])
+    return sum(
+        [
+            (a.get("roc_auc") or 0.0) >= (b.get("roc_auc") or 0.0),
+            (a.get("pr_auc") or 0.0) >= (b.get("pr_auc") or 0.0),
+            a.get("log_loss", 999.0) <= b.get("log_loss", 999.0),
+            a.get("brier", 999.0) <= b.get("brier", 999.0),
+            a.get("ece", 999.0) <= b.get("ece", 999.0),
+        ]
+    )
 
 
 def default_configs(hash_size, epochs):
@@ -319,10 +386,18 @@ def main():
     if not data_dir:
         raise SystemExit("Set CRITEO_CLICK_DIR first.")
 
-    max_rows = int(os.environ.get("RESBIAS_V2_MAX_ROWS", os.environ.get("RESBIAS_MAX_ROWS", "250000")))
+    max_rows = int(
+        os.environ.get(
+            "RESBIAS_V2_MAX_ROWS", os.environ.get("RESBIAS_MAX_ROWS", "250000")
+        )
+    )
     max_files = int(os.environ.get("RESBIAS_V2_MAX_FILES", "6"))
     epochs = int(os.environ.get("RESBIAS_V2_EPOCHS", "14"))
-    hash_size = int(os.environ.get("RESBIAS_V2_HASH_SIZE", os.environ.get("RESBIAS_HASH_SIZE", "120000")))
+    hash_size = int(
+        os.environ.get(
+            "RESBIAS_V2_HASH_SIZE", os.environ.get("RESBIAS_HASH_SIZE", "120000")
+        )
+    )
     oof_folds = int(os.environ.get("RESBIAS_V2_OOF_FOLDS", "3"))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -331,7 +406,9 @@ def main():
         print("GPU:", torch.cuda.get_device_name(0))
         print("Torch CUDA build:", torch.version.cuda)
 
-    raw, source_files = base.load_criteo_click_sample(data_dir, max_rows=max_rows, max_files=max_files)
+    raw, source_files = base.load_criteo_click_sample(
+        data_dir, max_rows=max_rows, max_files=max_files
+    )
     target_col = base.detect_target(raw)
     raw.columns = [str(c).strip() for c in raw.columns]
     numeric_cols, categorical_cols = base.detect_features(raw, target_col)
@@ -339,8 +416,12 @@ def main():
 
     y = df[target_col].to_numpy(dtype=np.float32)
     idx = np.arange(len(df))
-    train_full_idx, test_idx = train_test_split(idx, test_size=0.30, random_state=42, stratify=y)
-    train_idx, val_idx = train_test_split(train_full_idx, test_size=0.15, random_state=42, stratify=y[train_full_idx])
+    train_full_idx, test_idx = train_test_split(
+        idx, test_size=0.30, random_state=42, stratify=y
+    )
+    train_idx, val_idx = train_test_split(
+        train_full_idx, test_size=0.15, random_state=42, stratify=y[train_full_idx]
+    )
 
     print("Rows:", len(df))
     print("Train/val/test:", len(train_idx), len(val_idx), len(test_idx))
@@ -351,7 +432,16 @@ def main():
     print("OOF folds:", oof_folds)
 
     print("Training OOF + final LR baseline...")
-    lr = fit_lr_oof_and_final(df, numeric_cols, categorical_cols, target_col, train_idx, val_idx, test_idx, n_folds=oof_folds)
+    lr = fit_lr_oof_and_final(
+        df,
+        numeric_cols,
+        categorical_cols,
+        target_col,
+        train_idx,
+        val_idx,
+        test_idx,
+        n_folds=oof_folds,
+    )
     print("LR test metrics:", lr["test_metrics"])
 
     base_logit_all = np.zeros(len(df), dtype=np.float32)
@@ -366,7 +456,19 @@ def main():
     runs = []
     for config in default_configs(hash_size, epochs):
         print(f"Training residual-bias v2 config: {config['name']}")
-        runs.append(train_safe_residual(config, x_num, x_cat, y, base_logit_all, train_idx, val_idx, test_idx, device))
+        runs.append(
+            train_safe_residual(
+                config,
+                x_num,
+                x_cat,
+                y,
+                base_logit_all,
+                train_idx,
+                val_idx,
+                test_idx,
+                device,
+            )
+        )
 
     selected_run = max(runs, key=lambda r: r["best_val_score"])
     selected_candidate, lambda_candidates = sweep_safe_lambda(
@@ -386,11 +488,15 @@ def main():
     deepfm_count = compare_metric_count(res_test, deepfm_v2)
 
     lr_checks = {
-        "residual_auc_not_worse_than_lr": (res_test.get("roc_auc") or 0.0) >= (lr_test.get("roc_auc") or 0.0) - 0.0005,
-        "residual_pr_auc_not_worse_than_lr": (res_test.get("pr_auc") or 0.0) >= (lr_test.get("pr_auc") or 0.0) - 0.0005,
-        "residual_log_loss_not_worse_than_lr": res_test["log_loss"] <= lr_test["log_loss"] * 1.002,
+        "residual_auc_not_worse_than_lr": (res_test.get("roc_auc") or 0.0)
+        >= (lr_test.get("roc_auc") or 0.0) - 0.0005,
+        "residual_pr_auc_not_worse_than_lr": (res_test.get("pr_auc") or 0.0)
+        >= (lr_test.get("pr_auc") or 0.0) - 0.0005,
+        "residual_log_loss_not_worse_than_lr": res_test["log_loss"]
+        <= lr_test["log_loss"] * 1.002,
         "residual_ece_improves_lr": res_test["ece"] <= lr_test["ece"] * 0.90,
-        "gpu_residual_component_trained": device.type == "cuda" and selected_run["best_epoch"] >= 1,
+        "gpu_residual_component_trained": device.type == "cuda"
+        and selected_run["best_epoch"] >= 1,
     }
     lr_status = "PASS" if all(lr_checks.values()) else "ITERATE"
 
@@ -399,8 +505,10 @@ def main():
     if deepfm_v2:
         champion_checks = {
             "matches_or_beats_deepfm_v2_on_at_least_3_of_5_metrics": deepfm_count >= 3,
-            "log_loss_not_worse_than_deepfm_v2": res_test["log_loss"] <= deepfm_v2.get("log_loss", 999.0) * 1.001,
-            "ece_not_worse_than_deepfm_v2": res_test["ece"] <= deepfm_v2.get("ece", 999.0) * 1.05,
+            "log_loss_not_worse_than_deepfm_v2": res_test["log_loss"]
+            <= deepfm_v2.get("log_loss", 999.0) * 1.001,
+            "ece_not_worse_than_deepfm_v2": res_test["ece"]
+            <= deepfm_v2.get("ece", 999.0) * 1.05,
         }
         champion_status = "PASS" if all(champion_checks.values()) else "ITERATE"
 
@@ -415,7 +523,9 @@ def main():
         "categorical_feature_count": len(categorical_cols),
         "hash_size": hash_size,
         "device": str(device),
-        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "gpu_name": torch.cuda.get_device_name(0)
+        if torch.cuda.is_available()
+        else None,
         "torch_version": torch.__version__,
         "torch_cuda_build": torch.version.cuda,
         "train_rows": int(len(train_idx)),
@@ -455,8 +565,10 @@ def main():
             "champion_upgrade_status": champion_status,
             "champion_upgrade_checks": champion_checks,
             "overall_status": (
-                "PASS_CHAMPION_UPGRADE" if champion_status == "PASS"
-                else "PASS_LR_BASELINE" if lr_status == "PASS"
+                "PASS_CHAMPION_UPGRADE"
+                if champion_status == "PASS"
+                else "PASS_LR_BASELINE"
+                if lr_status == "PASS"
                 else "ITERATE"
             ),
             "reason": (
@@ -469,13 +581,17 @@ def main():
         },
     }
 
-    (OUTPUTS / "criteo_click_residual_bias_gpu_v2_metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    (OUTPUTS / "criteo_click_residual_bias_gpu_v2_metrics.json").write_text(
+        json.dumps(result, indent=2), encoding="utf-8"
+    )
 
     history_rows = []
     for r in runs:
         for h in r["history"]:
             history_rows.append({"config": r["config"]["name"], **h})
-    pd.DataFrame(history_rows).to_csv(OUTPUTS / "criteo_click_residual_bias_gpu_v2_training_history.csv", index=False)
+    pd.DataFrame(history_rows).to_csv(
+        OUTPUTS / "criteo_click_residual_bias_gpu_v2_training_history.csv", index=False
+    )
 
     pd.DataFrame(lambda_candidates).to_json(
         OUTPUTS / "criteo_click_residual_bias_gpu_v2_lambda_candidates.json",
@@ -531,7 +647,9 @@ Formula:
 - Overall status: **{result["release_decision"]["overall_status"]}**
 - Reason: {result["release_decision"]["reason"]}
 """
-    (REPORTS / "criteo_click_residual_bias_gpu_v2_report.md").write_text(report, encoding="utf-8")
+    (REPORTS / "criteo_click_residual_bias_gpu_v2_report.md").write_text(
+        report, encoding="utf-8"
+    )
 
     print("GPU residual-bias CTR v2 validation finished.")
     print("Report:", REPORTS / "criteo_click_residual_bias_gpu_v2_report.md")

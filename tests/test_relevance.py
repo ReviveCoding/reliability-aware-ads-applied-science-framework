@@ -1,6 +1,9 @@
-from src.relevance.synthetic_relevance import generate_synthetic_products
+from src.relevance.bias_corrected_reranker import (
+    add_candidate_expansion_scores,
+    evaluate_relevance_by_query,
+)
 from src.relevance.bm25_tfidf import score_tfidf_relevance
-from src.relevance.bias_corrected_reranker import add_candidate_expansion_scores, evaluate_relevance_by_query
+from src.relevance.synthetic_relevance import generate_synthetic_products
 
 
 def test_relevance_reranker_outputs_metrics():

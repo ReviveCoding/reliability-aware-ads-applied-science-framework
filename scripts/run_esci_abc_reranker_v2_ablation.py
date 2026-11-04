@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import time
 from pathlib import Path
 
@@ -8,7 +8,6 @@ import pandas as pd
 
 # Reuse the tested ESCI v2 implementation in the local scripts directory.
 import run_esci_abc_reranker_v2 as base
-
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -38,20 +37,25 @@ def delta_metrics(metrics, baseline):
         "ndcg_delta": metrics["ndcg_at_10"] - baseline["ndcg_at_10"],
         "recall_delta": metrics["recall_at_10"] - baseline["recall_at_10"],
         "precision_delta": metrics["precision_at_10"] - baseline["precision_at_10"],
-        "high_rank_irrelevant_delta": metrics["high_rank_irrelevant_rate"] - baseline["high_rank_irrelevant_rate"],
+        "high_rank_irrelevant_delta": metrics["high_rank_irrelevant_rate"]
+        - baseline["high_rank_irrelevant_rate"],
     }
 
 
 def pass_checks(metrics, baseline):
     return {
         "ndcg_not_worse": metrics["ndcg_at_10"] >= baseline["ndcg_at_10"] - 0.0005,
-        "recall_not_worse": metrics["recall_at_10"] >= baseline["recall_at_10"] - 0.0005,
-        "irrelevant_not_worse": metrics["high_rank_irrelevant_rate"] <= baseline["high_rank_irrelevant_rate"] + 0.0005,
+        "recall_not_worse": metrics["recall_at_10"]
+        >= baseline["recall_at_10"] - 0.0005,
+        "irrelevant_not_worse": metrics["high_rank_irrelevant_rate"]
+        <= baseline["high_rank_irrelevant_rate"] + 0.0005,
     }
 
 
 def run_variant(test_df, name, alpha, beta, gamma, delta, baseline_test):
-    scored = score_variant(test_df, name, alpha=alpha, beta=beta, gamma=gamma, delta=delta)
+    scored = score_variant(
+        test_df, name, alpha=alpha, beta=beta, gamma=gamma, delta=delta
+    )
     metrics = evaluate_variant(scored, name)
     checks = pass_checks(metrics, baseline_test)
     return {
@@ -70,7 +74,9 @@ def run_variant(test_df, name, alpha, beta, gamma, delta, baseline_test):
 
 
 def build_pipeline(data_dir, max_rows, locale):
-    df, examples_path, products_path = base.read_esci(data_dir, max_rows=max_rows, locale=locale)
+    df, examples_path, products_path = base.read_esci(
+        data_dir, max_rows=max_rows, locale=locale
+    )
 
     print("Loaded rows:", len(df))
     print("Queries:", df["query_id_safe"].nunique())
@@ -80,7 +86,12 @@ def build_pipeline(data_dir, max_rows, locale):
     train_df, val_df, test_df = base.split_by_query(df)
 
     print("Split rows:", len(train_df), len(val_df), len(test_df))
-    print("Split queries:", train_df["query_id_safe"].nunique(), val_df["query_id_safe"].nunique(), test_df["query_id_safe"].nunique())
+    print(
+        "Split queries:",
+        train_df["query_id_safe"].nunique(),
+        val_df["query_id_safe"].nunique(),
+        test_df["query_id_safe"].nunique(),
+    )
 
     word, char = base.fit_tfidf(train_df)
 
@@ -106,11 +117,19 @@ def main():
     if not data_dir:
         raise SystemExit("Set ESCI_DATA_DIR first.")
 
-    max_rows = int(os.environ.get("ESCI_ABLATION_MAX_ROWS", os.environ.get("ESCI_ABC_MAX_ROWS", "160000")))
-    locale = os.environ.get("ESCI_ABLATION_LOCALE", os.environ.get("ESCI_ABC_LOCALE", "us"))
+    max_rows = int(
+        os.environ.get(
+            "ESCI_ABLATION_MAX_ROWS", os.environ.get("ESCI_ABC_MAX_ROWS", "160000")
+        )
+    )
+    locale = os.environ.get(
+        "ESCI_ABLATION_LOCALE", os.environ.get("ESCI_ABC_LOCALE", "us")
+    )
 
     start = time.time()
-    df, train_df, val_df, test_df, examples_path, products_path = build_pipeline(data_dir, max_rows, locale)
+    df, train_df, val_df, test_df, examples_path, products_path = build_pipeline(
+        data_dir, max_rows, locale
+    )
 
     baseline_val = evaluate_variant(val_df, "baseline_score")
     baseline_test = evaluate_variant(test_df, "baseline_score")
@@ -124,36 +143,115 @@ def main():
     }
 
     variants = []
-    variants.append({
-        "variant": "baseline_tfidf",
-        "parameters": {"alpha_expansion": 0.0, "beta_expected_gain": 0.0, "gamma_relevance": 0.0, "delta_overreach": 0.0},
-        "test_metrics": baseline_test,
-        "delta_vs_baseline": delta_metrics(baseline_test, baseline_test),
-        "release_checks_vs_baseline": pass_checks(baseline_test, baseline_test),
-        "passes_all_guardrails": True,
-    })
+    variants.append(
+        {
+            "variant": "baseline_tfidf",
+            "parameters": {
+                "alpha_expansion": 0.0,
+                "beta_expected_gain": 0.0,
+                "gamma_relevance": 0.0,
+                "delta_overreach": 0.0,
+            },
+            "test_metrics": baseline_test,
+            "delta_vs_baseline": delta_metrics(baseline_test, baseline_test),
+            "release_checks_vs_baseline": pass_checks(baseline_test, baseline_test),
+            "passes_all_guardrails": True,
+        }
+    )
 
     # One-factor ablations.
-    variants.append(run_variant(test_df, "expansion_only", alpha=0.20, beta=0.0, gamma=0.0, delta=0.0, baseline_test=baseline_test))
-    variants.append(run_variant(test_df, "expected_gain_only", alpha=0.0, beta=0.80, gamma=0.0, delta=0.0, baseline_test=baseline_test))
-    variants.append(run_variant(test_df, "relevance_only", alpha=0.0, beta=0.0, gamma=0.20, delta=0.0, baseline_test=baseline_test))
-    variants.append(run_variant(test_df, "overreach_only", alpha=0.0, beta=0.0, gamma=0.0, delta=0.35, baseline_test=baseline_test))
+    variants.append(
+        run_variant(
+            test_df,
+            "expansion_only",
+            alpha=0.20,
+            beta=0.0,
+            gamma=0.0,
+            delta=0.0,
+            baseline_test=baseline_test,
+        )
+    )
+    variants.append(
+        run_variant(
+            test_df,
+            "expected_gain_only",
+            alpha=0.0,
+            beta=0.80,
+            gamma=0.0,
+            delta=0.0,
+            baseline_test=baseline_test,
+        )
+    )
+    variants.append(
+        run_variant(
+            test_df,
+            "relevance_only",
+            alpha=0.0,
+            beta=0.0,
+            gamma=0.20,
+            delta=0.0,
+            baseline_test=baseline_test,
+        )
+    )
+    variants.append(
+        run_variant(
+            test_df,
+            "overreach_only",
+            alpha=0.0,
+            beta=0.0,
+            gamma=0.0,
+            delta=0.35,
+            baseline_test=baseline_test,
+        )
+    )
 
     # Combined variants.
-    variants.append(run_variant(test_df, "expansion_plus_expected_gain", alpha=0.20, beta=0.80, gamma=0.0, delta=0.0, baseline_test=baseline_test))
-    variants.append(run_variant(test_df, "expansion_plus_expected_gain_forced_overreach_0_20", alpha=0.20, beta=0.80, gamma=0.0, delta=0.20, baseline_test=baseline_test))
-    variants.append(run_variant(test_df, "expansion_plus_expected_gain_forced_overreach_0_50", alpha=0.20, beta=0.80, gamma=0.0, delta=0.50, baseline_test=baseline_test))
+    variants.append(
+        run_variant(
+            test_df,
+            "expansion_plus_expected_gain",
+            alpha=0.20,
+            beta=0.80,
+            gamma=0.0,
+            delta=0.0,
+            baseline_test=baseline_test,
+        )
+    )
+    variants.append(
+        run_variant(
+            test_df,
+            "expansion_plus_expected_gain_forced_overreach_0_20",
+            alpha=0.20,
+            beta=0.80,
+            gamma=0.0,
+            delta=0.20,
+            baseline_test=baseline_test,
+        )
+    )
+    variants.append(
+        run_variant(
+            test_df,
+            "expansion_plus_expected_gain_forced_overreach_0_50",
+            alpha=0.20,
+            beta=0.80,
+            gamma=0.0,
+            delta=0.50,
+            baseline_test=baseline_test,
+        )
+    )
 
     # Validation-selected ABC model.
-    variants.append(run_variant(
-        test_df,
-        "validation_selected_abc",
-        alpha=selected["alpha_expansion"],
-        beta=selected["beta_expected_gain"],
-        gamma=selected["gamma_relevance"],
-        delta=selected["delta_overreach"],
-        baseline_test=baseline_test,
-    ))
+    variants.append(
+        run_variant(
+            test_df,
+            "validation_selected_abc",
+            alpha=selected["alpha_expansion"],
+            beta=selected["beta_expected_gain"],
+            gamma=selected["gamma_relevance"],
+            delta=selected["delta_overreach"],
+            baseline_test=baseline_test,
+        )
+    )
 
     def variant_score(v):
         m = v["test_metrics"]
@@ -167,22 +265,27 @@ def main():
 
     best = max(variants, key=variant_score)
 
-    ablation_table = pd.DataFrame([
-        {
-            "variant": v["variant"],
-            **v["parameters"],
-            **v["test_metrics"],
-            **v["delta_vs_baseline"],
-            "passes_all_guardrails": v["passes_all_guardrails"],
-        }
-        for v in variants
-    ]).sort_values(["passes_all_guardrails", "ndcg_at_10"], ascending=[False, False])
+    ablation_table = pd.DataFrame(
+        [
+            {
+                "variant": v["variant"],
+                **v["parameters"],
+                **v["test_metrics"],
+                **v["delta_vs_baseline"],
+                "passes_all_guardrails": v["passes_all_guardrails"],
+            }
+            for v in variants
+        ]
+    ).sort_values(["passes_all_guardrails", "ndcg_at_10"], ascending=[False, False])
 
     result = {
         "dataset": "Amazon ESCI Shopping Queries local public-data sample",
         "method": "ABC-style ESCI v2 ablation study",
         "claim_boundary": "Local public-data validation only. No proprietary Amazon data, production traffic, customer data, or deployment is claimed.",
-        "source_files": {"examples": str(examples_path), "products": str(products_path)},
+        "source_files": {
+            "examples": str(examples_path),
+            "products": str(products_path),
+        },
         "rows": int(len(df)),
         "queries": int(df["query_id_safe"].nunique()),
         "locale": locale,
@@ -204,14 +307,18 @@ def main():
             "notes": [
                 "If expected_gain_only or expansion_plus_expected_gain is strongest, the observed ABC v2 gain is mainly from learned expected-gain reranking.",
                 "If forced-overreach variants reduce high-rank irrelevant but hurt NDCG or recall, explicit overreach penalty is useful as a guardrail but not the promoted scoring component.",
-                "If validation_selected_abc remains best, the original ABC v2 selection is stable under ablation."
+                "If validation_selected_abc remains best, the original ABC v2 selection is stable under ablation.",
             ],
         },
         "runtime_seconds": time.time() - start,
     }
 
-    (OUTPUTS / "esci_abc_reranker_v2_ablation_metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-    ablation_table.to_csv(OUTPUTS / "esci_abc_reranker_v2_ablation_table.csv", index=False)
+    (OUTPUTS / "esci_abc_reranker_v2_ablation_metrics.json").write_text(
+        json.dumps(result, indent=2), encoding="utf-8"
+    )
+    ablation_table.to_csv(
+        OUTPUTS / "esci_abc_reranker_v2_ablation_table.csv", index=False
+    )
 
     report_rows = []
     for _, row in ablation_table.iterrows():
@@ -239,16 +346,16 @@ The prior ABC-style ESCI v2 run passed release gates, but the selected explicit 
 
 ## Data summary
 
-- Rows: {result['rows']}
-- Queries: {result['queries']}
-- Train / validation / test queries: {result['split']['train_queries']} / {result['split']['val_queries']} / {result['split']['test_queries']}
+- Rows: {result["rows"]}
+- Queries: {result["queries"]}
+- Train / validation / test queries: {result["split"]["train_queries"]} / {result["split"]["val_queries"]} / {result["split"]["test_queries"]}
 
 ## Baseline test metrics
 
-- NDCG@10: {baseline_test['ndcg_at_10']:.6f}
-- Recall@10: {baseline_test['recall_at_10']:.6f}
-- Precision@10: {baseline_test['precision_at_10']:.6f}
-- High-rank irrelevant rate: {baseline_test['high_rank_irrelevant_rate']:.6f}
+- NDCG@10: {baseline_test["ndcg_at_10"]:.6f}
+- Recall@10: {baseline_test["recall_at_10"]:.6f}
+- Precision@10: {baseline_test["precision_at_10"]:.6f}
+- High-rank irrelevant rate: {baseline_test["high_rank_irrelevant_rate"]:.6f}
 
 ## Ablation comparison
 
@@ -258,15 +365,17 @@ The prior ABC-style ESCI v2 run passed release gates, but the selected explicit 
 
 ## Best variant by guardrail score
 
-- Variant: **{best['variant']}**
-- Parameters: {best['parameters']}
-- Test metrics: {best['test_metrics']}
+- Variant: **{best["variant"]}**
+- Parameters: {best["parameters"]}
+- Test metrics: {best["test_metrics"]}
 
 ## Interpretation guide
 
 If the best variants use beta expected gain and not delta overreach, then the main validated contribution is expected-gain reranking after expansion rather than explicit irrelevant penalty. If forced-overreach variants reduce high-rank irrelevant rate but hurt NDCG or recall, overreach control should remain a release guardrail rather than a promoted scoring term.
 """
-    (REPORTS / "esci_abc_reranker_v2_ablation_report.md").write_text(md, encoding="utf-8")
+    (REPORTS / "esci_abc_reranker_v2_ablation_report.md").write_text(
+        md, encoding="utf-8"
+    )
 
     print("ABC-style ESCI reranker v2 ablation finished.")
     print("Report:", REPORTS / "esci_abc_reranker_v2_ablation_report.md")

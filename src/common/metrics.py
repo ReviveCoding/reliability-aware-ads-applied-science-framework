@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score, average_precision_score, log_loss, brier_score_loss
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+)
 
 
 def safe_auc(y_true, y_score):
@@ -37,13 +42,29 @@ def expected_calibration_error(y_true, y_prob, n_bins=10):
         lo, hi = bins[i], bins[i + 1]
         mask = (y_prob >= lo) & (y_prob < hi if i < n_bins - 1 else y_prob <= hi)
         if mask.sum() == 0:
-            rows.append({"bin": i, "count": 0, "confidence": np.nan, "accuracy": np.nan, "gap": np.nan})
+            rows.append(
+                {
+                    "bin": i,
+                    "count": 0,
+                    "confidence": np.nan,
+                    "accuracy": np.nan,
+                    "gap": np.nan,
+                }
+            )
             continue
         conf = float(y_prob[mask].mean())
         acc = float(y_true[mask].mean())
         gap = abs(acc - conf)
         ece += (mask.sum() / len(y_true)) * gap
-        rows.append({"bin": i, "count": int(mask.sum()), "confidence": conf, "accuracy": acc, "gap": gap})
+        rows.append(
+            {
+                "bin": i,
+                "count": int(mask.sum()),
+                "confidence": conf,
+                "accuracy": acc,
+                "gap": gap,
+            }
+        )
     return float(ece), pd.DataFrame(rows)
 
 
@@ -58,12 +79,16 @@ def classification_report_dict(y_true, y_prob):
 
 
 def ndcg_at_k(labels, scores, k=10):
-    df = pd.DataFrame({"label": labels, "score": scores}).sort_values("score", ascending=False).head(k)
-    gains = (2 ** df["label"].values - 1)
+    df = (
+        pd.DataFrame({"label": labels, "score": scores})
+        .sort_values("score", ascending=False)
+        .head(k)
+    )
+    gains = 2 ** df["label"].values - 1
     discounts = 1 / np.log2(np.arange(2, len(df) + 2))
     dcg = float(np.sum(gains * discounts))
     ideal = np.sort(labels)[::-1][:k]
-    ideal_gains = (2 ** ideal - 1)
+    ideal_gains = 2**ideal - 1
     idcg = float(np.sum(ideal_gains * discounts[: len(ideal)]))
     return 0.0 if idcg == 0 else dcg / idcg
 
@@ -85,7 +110,9 @@ def precision_at_k(labels, scores, k=10):
 
 
 def auuc_score(treatment, outcome, uplift_score):
-    df = pd.DataFrame({"t": treatment, "y": outcome, "u": uplift_score}).sort_values("u", ascending=False)
+    df = pd.DataFrame({"t": treatment, "y": outcome, "u": uplift_score}).sort_values(
+        "u", ascending=False
+    )
     treated = (df["t"] == 1).astype(float)
     control = (df["t"] == 0).astype(float)
     cum_t = treated.cumsum().replace(0, np.nan)
@@ -105,4 +132,6 @@ def bootstrap_ci(values, n_boot=30, seed=42, alpha=0.05):
     for _ in range(n_boot):
         sample = rng.choice(values, size=len(values), replace=True)
         means.append(sample.mean())
-    return float(np.quantile(means, alpha / 2)), float(np.quantile(means, 1 - alpha / 2))
+    return float(np.quantile(means, alpha / 2)), float(
+        np.quantile(means, 1 - alpha / 2)
+    )

@@ -1,24 +1,22 @@
-import os
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, OrdinalEncoder
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import (
-    roc_auc_score,
     average_precision_score,
-    log_loss,
     brier_score_loss,
+    log_loss,
+    roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
-
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -69,7 +67,11 @@ def read_one_file(path, nrows=None):
 
     # Standard Criteo format: label + 13 dense integer + 26 categorical.
     if df.shape[1] == 40:
-        df.columns = ["label"] + [f"I{i}" for i in range(1, 14)] + [f"C{i}" for i in range(1, 27)]
+        df.columns = (
+            ["label"]
+            + [f"I{i}" for i in range(1, 14)]
+            + [f"C{i}" for i in range(1, 27)]
+        )
     else:
         df.columns = [f"col_{i}" for i in range(df.shape[1])]
         df = df.rename(columns={"col_0": "label"})
@@ -102,16 +104,22 @@ def detect_target(df):
     priority = ["label", "click", "clicked", "target", "y"]
     for col in priority:
         if col in df.columns:
-            vals = set(pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10])
-            if vals.issubset({0, 1, 0.0, 1.0}):
+            vals = set(
+                pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10]
+            )
+            if vals.issubset({0, 1}):
                 return col
 
     for col in df.columns:
-        vals = set(pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10])
-        if vals and vals.issubset({0, 1, 0.0, 1.0}):
+        vals = set(
+            pd.to_numeric(df[col], errors="coerce").dropna().unique().tolist()[:10]
+        )
+        if vals and vals.issubset({0, 1}):
             return col
 
-    raise ValueError(f"Could not detect binary click target. Columns: {df.columns.tolist()}")
+    raise ValueError(
+        f"Could not detect binary click target. Columns: {df.columns.tolist()}"
+    )
 
 
 def prepare_features(raw, target_col):
@@ -126,8 +134,7 @@ def prepare_features(raw, target_col):
     # Drop obviously non-feature columns if present.
     drop_like = {"timestamp", "date", "day"}
     feature_cols = [
-        c for c in df.columns
-        if c != target_col and c.lower() not in drop_like
+        c for c in df.columns if c != target_col and c.lower() not in drop_like
     ]
 
     numeric_cols = []
@@ -154,7 +161,9 @@ def prepare_features(raw, target_col):
         df[col] = df[col].fillna("missing").astype(str)
 
     if len(df[target_col].unique()) < 2:
-        raise ValueError("Loaded sample has a single target class. Increase max_rows or choose another sample file.")
+        raise ValueError(
+            "Loaded sample has a single target class. Increase max_rows or choose another sample file."
+        )
 
     return df, numeric_cols, categorical_cols
 
@@ -201,10 +210,16 @@ def model_metrics(y_true, y_prob):
 def fit_logistic_regression(train, numeric_cols, categorical_cols, target_col):
     pre = ColumnTransformer(
         transformers=[
-            ("num", Pipeline([
-                ("impute", SimpleImputer(strategy="median")),
-                ("scale", StandardScaler(with_mean=False)),
-            ]), numeric_cols),
+            (
+                "num",
+                Pipeline(
+                    [
+                        ("impute", SimpleImputer(strategy="median")),
+                        ("scale", StandardScaler(with_mean=False)),
+                    ]
+                ),
+                numeric_cols,
+            ),
             ("cat", safe_ohe(), categorical_cols),
         ],
         sparse_threshold=0.3,
@@ -226,10 +241,24 @@ def fit_gbdt(train, numeric_cols, categorical_cols, target_col):
     pre = ColumnTransformer(
         transformers=[
             ("num", SimpleImputer(strategy="median"), numeric_cols),
-            ("cat", Pipeline([
-                ("impute", SimpleImputer(strategy="constant", fill_value="missing")),
-                ("ordinal", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
-            ]), categorical_cols),
+            (
+                "cat",
+                Pipeline(
+                    [
+                        (
+                            "impute",
+                            SimpleImputer(strategy="constant", fill_value="missing"),
+                        ),
+                        (
+                            "ordinal",
+                            OrdinalEncoder(
+                                handle_unknown="use_encoded_value", unknown_value=-1
+                            ),
+                        ),
+                    ]
+                ),
+                categorical_cols,
+            ),
         ],
         sparse_threshold=0.0,
     )
@@ -253,14 +282,16 @@ def apply_empirical_bayes(train, test, group_col, raw_prob_col, target_col):
     alpha = prior_rate * strength
     beta = (1.0 - prior_rate) * strength
 
-    group_stats = train.groupby(group_col)[target_col].agg(["sum", "count"]).reset_index()
-    group_stats["posterior_mean"] = (
-        group_stats["sum"] + alpha
-    ) / (
+    group_stats = (
+        train.groupby(group_col)[target_col].agg(["sum", "count"]).reset_index()
+    )
+    group_stats["posterior_mean"] = (group_stats["sum"] + alpha) / (
         group_stats["count"] + alpha + beta
     )
 
-    out = test.merge(group_stats[[group_col, "posterior_mean", "count"]], on=group_col, how="left")
+    out = test.merge(
+        group_stats[[group_col, "posterior_mean", "count"]], on=group_col, how="left"
+    )
     out["posterior_mean"] = out["posterior_mean"].fillna(prior_rate)
     out["count"] = out["count"].fillna(0.0)
 
@@ -314,8 +345,10 @@ def main():
     eb_metrics = model_metrics(test_eb[target_col], test_eb["pctr_eb"])
 
     checks = {
-        "gbdt_log_loss_not_worse_than_lr": gbdt_metrics["log_loss"] <= lr_metrics["log_loss"] * 1.02,
-        "gbdt_auc_not_worse_than_lr": (gbdt_metrics.get("roc_auc") or 0.0) >= (lr_metrics.get("roc_auc") or 0.0) - 0.002,
+        "gbdt_log_loss_not_worse_than_lr": gbdt_metrics["log_loss"]
+        <= lr_metrics["log_loss"] * 1.02,
+        "gbdt_auc_not_worse_than_lr": (gbdt_metrics.get("roc_auc") or 0.0)
+        >= (lr_metrics.get("roc_auc") or 0.0) - 0.002,
         "eb_ece_improves_or_brier_stable": (
             eb_metrics["ece"] <= gbdt_metrics["ece"]
             or eb_metrics["brier"] <= gbdt_metrics["brier"] * 1.02

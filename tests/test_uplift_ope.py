@@ -1,7 +1,7 @@
+from src.ope.estimators import ope_summary
+from src.ope.synthetic_logged_bandit import generate_logged_bandit
 from src.uplift.synthetic_uplift_generator import generate_synthetic_uplift
 from src.uplift.t_learner import fit_t_learner, predict_uplift, uplift_report_metrics
-from src.ope.synthetic_logged_bandit import generate_logged_bandit
-from src.ope.estimators import ope_summary
 
 
 def test_uplift_pipeline_smoke():

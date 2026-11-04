@@ -1,8 +1,9 @@
 import numpy as np
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
 from .feature_builder import feature_columns
 
 
@@ -15,10 +16,12 @@ def _one_hot_encoder():
 
 def make_lr_pipeline():
     cat_cols, num_cols = feature_columns()
-    pre = ColumnTransformer([
-        ("cat", _one_hot_encoder(), cat_cols),
-        ("num", StandardScaler(), num_cols),
-    ])
+    pre = ColumnTransformer(
+        [
+            ("cat", _one_hot_encoder(), cat_cols),
+            ("num", StandardScaler(), num_cols),
+        ]
+    )
     model = LogisticRegression(max_iter=500, n_jobs=None)
     return Pipeline([("pre", pre), ("model", model)])
 

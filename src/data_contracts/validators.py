@@ -1,9 +1,18 @@
 import pandas as pd
 
-
 ADS_REQUIRED_COLUMNS = [
-    "impression_id", "timestamp", "campaign_id", "advertiser_id", "product_id",
-    "query_id", "category", "bid", "position", "relevance", "click", "conversion"
+    "impression_id",
+    "timestamp",
+    "campaign_id",
+    "advertiser_id",
+    "product_id",
+    "query_id",
+    "category",
+    "bid",
+    "position",
+    "relevance",
+    "click",
+    "conversion",
 ]
 
 
@@ -14,7 +23,9 @@ def validate_ads_schema(df):
         problems.append(f"Missing required columns: {missing}")
     if "click" in df.columns and not set(df["click"].unique()).issubset({0, 1}):
         problems.append("click must be binary")
-    if "conversion" in df.columns and not set(df["conversion"].unique()).issubset({0, 1}):
+    if "conversion" in df.columns and not set(df["conversion"].unique()).issubset(
+        {0, 1}
+    ):
         problems.append("conversion must be binary")
     if "bid" in df.columns and (df["bid"] < 0).any():
         problems.append("bid must be non-negative")

@@ -1,5 +1,6 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from src.common.config import load_config
 from src.pipelines.all import run_all

@@ -1,7 +1,11 @@
-from src.ctr_cvr.synthetic_ads_generator import generate_synthetic_ads
-from src.ctr_cvr.feature_builder import build_features
+from src.calibration.empirical_bayes import (
+    apply_empirical_bayes,
+    fit_beta_binomial_prior,
+    group_posterior_table,
+)
 from src.common.splits import temporal_split
-from src.calibration.empirical_bayes import fit_beta_binomial_prior, group_posterior_table, apply_empirical_bayes
+from src.ctr_cvr.feature_builder import build_features
+from src.ctr_cvr.synthetic_ads_generator import generate_synthetic_ads
 
 
 def test_empirical_bayes_outputs_probability():

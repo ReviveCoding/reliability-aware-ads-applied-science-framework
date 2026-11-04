@@ -1,21 +1,26 @@
 import pandas as pd
+
 from src.common.metrics import expected_calibration_error, safe_log_loss
 
 
-def compute_slice_metrics(df, slice_col="category", target_col="click", prob_col="pctr_eb"):
+def compute_slice_metrics(
+    df, slice_col="category", target_col="click", prob_col="pctr_eb"
+):
     rows = []
     for val, g in df.groupby(slice_col):
         if len(g) < 10:
             continue
         ece = expected_calibration_error(g[target_col], g[prob_col])[0]
-        rows.append({
-            "slice_col": slice_col,
-            "slice_value": val,
-            "n": int(len(g)),
-            "positive_rate": float(g[target_col].mean()),
-            "log_loss": safe_log_loss(g[target_col], g[prob_col]),
-            "ece": ece,
-        })
+        rows.append(
+            {
+                "slice_col": slice_col,
+                "slice_value": val,
+                "n": int(len(g)),
+                "positive_rate": float(g[target_col].mean()),
+                "log_loss": safe_log_loss(g[target_col], g[prob_col]),
+                "ece": ece,
+            }
+        )
     return pd.DataFrame(rows)
 
 

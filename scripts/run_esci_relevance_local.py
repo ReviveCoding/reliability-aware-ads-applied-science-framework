@@ -1,12 +1,10 @@
-
-import os
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -33,7 +31,9 @@ LABEL_MAP = {
 
 def find_file(root, keyword):
     root = Path(root)
-    matches = list(root.rglob(f"*{keyword}*.parquet")) + list(root.rglob(f"*{keyword}*.csv"))
+    matches = list(root.rglob(f"*{keyword}*.parquet")) + list(
+        root.rglob(f"*{keyword}*.csv")
+    )
     if not matches:
         raise FileNotFoundError(f"No file matching '*{keyword}*' under {root}")
     return matches[0]
@@ -41,7 +41,7 @@ def find_file(root, keyword):
 
 def dcg(labels):
     labels = np.asarray(labels, dtype=float)
-    gains = 2 ** labels - 1
+    gains = 2**labels - 1
     discounts = 1 / np.log2(np.arange(2, len(labels) + 2))
     return float(np.sum(gains * discounts))
 
@@ -108,15 +108,21 @@ def load_esci_sample(data_dir, max_rows=120000):
     label_col = "esci_label" if "esci_label" in examples.columns else "label"
 
     if query_col not in examples.columns:
-        raise ValueError(f"Could not find query column. Examples columns: {examples.columns.tolist()}")
+        raise ValueError(
+            f"Could not find query column. Examples columns: {examples.columns.tolist()}"
+        )
 
     if label_col not in examples.columns:
-        raise ValueError(f"Could not find ESCI label column. Examples columns: {examples.columns.tolist()}")
+        raise ValueError(
+            f"Could not find ESCI label column. Examples columns: {examples.columns.tolist()}"
+        )
 
     if "product_title" not in products.columns:
         title_candidates = [c for c in products.columns if "title" in c.lower()]
         if not title_candidates:
-            raise ValueError(f"Could not find product title column. Products columns: {products.columns.tolist()}")
+            raise ValueError(
+                f"Could not find product title column. Products columns: {products.columns.tolist()}"
+            )
         products = products.rename(columns={title_candidates[0]: "product_title"})
 
     keep_products = ["product_id", "product_title"]
@@ -151,7 +157,9 @@ def load_esci_sample(data_dir, max_rows=120000):
     df["title_text"] = df["product_title"].astype(str)
 
     df["label_num"] = df[label_col].map(LABEL_MAP)
-    df["label_num"] = pd.to_numeric(df["label_num"], errors="coerce").fillna(0).astype(int)
+    df["label_num"] = (
+        pd.to_numeric(df["label_num"], errors="coerce").fillna(0).astype(int)
+    )
 
     if "product_brand" in df.columns:
         df["brand_text"] = df["product_brand"].fillna("").astype(str)
@@ -185,14 +193,16 @@ def evaluate_by_query(df, score_col):
         labels = g["label_num"].values
         scores = g[score_col].values
         top = g.sort_values(score_col, ascending=False).head(10)
-        rows.append({
-            "query_id": str(qid),
-            "n": int(len(g)),
-            "ndcg_at_10": ndcg_at_k(labels, scores, 10),
-            "recall_at_10": recall_at_k(labels, scores, 10),
-            "precision_at_10": precision_at_k(labels, scores, 10),
-            "high_rank_irrelevant_rate": float((top["label_num"] == 0).mean()),
-        })
+        rows.append(
+            {
+                "query_id": str(qid),
+                "n": int(len(g)),
+                "ndcg_at_10": ndcg_at_k(labels, scores, 10),
+                "recall_at_10": recall_at_k(labels, scores, 10),
+                "precision_at_10": precision_at_k(labels, scores, 10),
+                "high_rank_irrelevant_rate": float((top["label_num"] == 0).mean()),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -210,12 +220,16 @@ def main():
     print(df["label_num"].value_counts().sort_index())
 
     df["tfidf_score"] = score_tfidf(df)
-    df["title_jaccard"] = [token_jaccard(q, t) for q, t in zip(df["query_text"], df["title_text"])]
+    df["title_jaccard"] = [
+        token_jaccard(q, t) for q, t in zip(df["query_text"], df["title_text"])
+    ]
     df["brand_match"] = [
         1.0 if b and str(b).lower() in str(q).lower() else 0.0
         for q, b in zip(df["query_text"], df["brand_text"])
     ]
-    df["desc_jaccard"] = [token_jaccard(q, d) for q, d in zip(df["query_text"], df["description_text"])]
+    df["desc_jaccard"] = [
+        token_jaccard(q, d) for q, d in zip(df["query_text"], df["description_text"])
+    ]
 
     df["candidate_expansion_score"] = (
         0.70 * df["tfidf_score"]
@@ -239,24 +253,37 @@ def main():
     base_q = evaluate_by_query(df, "tfidf_score")
     prop_q = evaluate_by_query(df, "bias_corrected_rerank_score")
 
-    base = base_q[[
-        "ndcg_at_10",
-        "recall_at_10",
-        "precision_at_10",
-        "high_rank_irrelevant_rate",
-    ]].mean().to_dict()
+    base = (
+        base_q[
+            [
+                "ndcg_at_10",
+                "recall_at_10",
+                "precision_at_10",
+                "high_rank_irrelevant_rate",
+            ]
+        ]
+        .mean()
+        .to_dict()
+    )
 
-    prop = prop_q[[
-        "ndcg_at_10",
-        "recall_at_10",
-        "precision_at_10",
-        "high_rank_irrelevant_rate",
-    ]].mean().to_dict()
+    prop = (
+        prop_q[
+            [
+                "ndcg_at_10",
+                "recall_at_10",
+                "precision_at_10",
+                "high_rank_irrelevant_rate",
+            ]
+        ]
+        .mean()
+        .to_dict()
+    )
 
     checks = {
         "ndcg_improved": prop["ndcg_at_10"] > base["ndcg_at_10"],
         "recall_not_worse": prop["recall_at_10"] >= base["recall_at_10"],
-        "high_rank_irrelevant_not_worse": prop["high_rank_irrelevant_rate"] <= base["high_rank_irrelevant_rate"],
+        "high_rank_irrelevant_not_worse": prop["high_rank_irrelevant_rate"]
+        <= base["high_rank_irrelevant_rate"],
     }
 
     status = "PASS" if all(checks.values()) else "ITERATE"
@@ -283,8 +310,7 @@ def main():
     }
 
     (OUTPUTS / "esci_relevance_metrics.json").write_text(
-        json.dumps(metrics, indent=2),
-        encoding="utf-8"
+        json.dumps(metrics, indent=2), encoding="utf-8"
     )
     prop_q.to_csv(OUTPUTS / "esci_relevance_query_metrics.csv", index=False)
     df.head(5000).to_csv(OUTPUTS / "esci_relevance_scored_sample.csv", index=False)
