@@ -8,19 +8,18 @@ then trains an AutoInt-style self-attention CTR component on CUDA and evaluates
 an LR + AutoInt residual ensemble under release gates.
 """
 
+import json
 import os
 import sys
-import json
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[0]
@@ -32,19 +31,19 @@ OUTPUTS.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPT_DIR))
 try:
     from run_criteo_click_deepctr_gpu_v2 import (
-        load_criteo_click_sample,
-        detect_target,
         detect_features,
-        preprocess_raw,
-        numeric_matrix,
-        standardize_numeric,
-        hash_categorical_matrix,
-        model_metrics,
+        detect_target,
         fit_lr_baseline,
-        make_loader,
-        sigmoid_np,
-        predict_logits,
         fit_temperature,
+        hash_categorical_matrix,
+        load_criteo_click_sample,
+        make_loader,
+        model_metrics,
+        numeric_matrix,
+        predict_logits,
+        preprocess_raw,
+        sigmoid_np,
+        standardize_numeric,
     )
 except Exception as exc:
     raise RuntimeError(
@@ -106,19 +105,25 @@ class AutoIntCTR(nn.Module):
             self.numeric_bias = None
             self.numeric_linear = None
 
-        self.cat_embeddings = nn.ModuleList([
-            nn.Embedding(hash_size + 1, emb_dim, padding_idx=0)
-            for _ in range(num_categorical)
-        ])
-        self.cat_linear = nn.ModuleList([
-            nn.Embedding(hash_size + 1, 1, padding_idx=0)
-            for _ in range(num_categorical)
-        ])
+        self.cat_embeddings = nn.ModuleList(
+            [
+                nn.Embedding(hash_size + 1, emb_dim, padding_idx=0)
+                for _ in range(num_categorical)
+            ]
+        )
+        self.cat_linear = nn.ModuleList(
+            [
+                nn.Embedding(hash_size + 1, 1, padding_idx=0)
+                for _ in range(num_categorical)
+            ]
+        )
 
-        self.blocks = nn.ModuleList([
-            AutoIntBlock(emb_dim=emb_dim, num_heads=num_heads, dropout=dropout)
-            for _ in range(num_layers)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                AutoIntBlock(emb_dim=emb_dim, num_heads=num_heads, dropout=dropout)
+                for _ in range(num_layers)
+            ]
+        )
 
         token_count = num_numeric + num_categorical
         pooled_dim = emb_dim * 2 + token_count * emb_dim
@@ -137,14 +142,21 @@ class AutoIntCTR(nn.Module):
         linear = self.bias.expand(batch)
 
         if self.num_numeric > 0:
-            num_tokens = x_num.unsqueeze(-1) * self.numeric_weight.unsqueeze(0) + self.numeric_bias.unsqueeze(0)
+            num_tokens = x_num.unsqueeze(-1) * self.numeric_weight.unsqueeze(
+                0
+            ) + self.numeric_bias.unsqueeze(0)
             tokens.append(num_tokens)
             linear = linear + self.numeric_linear(x_num).squeeze(1)
 
         if self.num_categorical > 0:
-            cat_tokens = [emb(x_cat[:, j]).unsqueeze(1) for j, emb in enumerate(self.cat_embeddings)]
+            cat_tokens = [
+                emb(x_cat[:, j]).unsqueeze(1)
+                for j, emb in enumerate(self.cat_embeddings)
+            ]
             tokens.append(torch.cat(cat_tokens, dim=1))
-            cat_lin = [emb(x_cat[:, j]).squeeze(1) for j, emb in enumerate(self.cat_linear)]
+            cat_lin = [
+                emb(x_cat[:, j]).squeeze(1) for j, emb in enumerate(self.cat_linear)
+            ]
             linear = linear + torch.stack(cat_lin, dim=1).sum(dim=1)
 
         x = torch.cat(tokens, dim=1)
@@ -162,8 +174,12 @@ def train_autoint(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device)
     batch_size = int(config["batch_size"])
     pin_memory = device.type == "cuda"
     train_loader = make_loader(x_num, x_cat, y, train_idx, batch_size, True, pin_memory)
-    val_loader = make_loader(x_num, x_cat, y, val_idx, batch_size * 2, False, pin_memory)
-    test_loader = make_loader(x_num, x_cat, y, test_idx, batch_size * 2, False, pin_memory)
+    val_loader = make_loader(
+        x_num, x_cat, y, val_idx, batch_size * 2, False, pin_memory
+    )
+    test_loader = make_loader(
+        x_num, x_cat, y, test_idx, batch_size * 2, False, pin_memory
+    )
 
     model = AutoIntCTR(
         num_numeric=x_num.shape[1],
@@ -176,8 +192,14 @@ def train_autoint(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device)
         dropout=float(config["dropout"]),
     ).to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=int(config["epochs"]))
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(config["lr"]),
+        weight_decay=float(config["weight_decay"]),
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=int(config["epochs"])
+    )
     loss_fn = nn.BCEWithLogitsLoss()
     use_amp = device.type == "cuda" and bool(config.get("amp", True))
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
@@ -218,15 +240,23 @@ def train_autoint(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device)
         val_metrics = model_metrics(val_y, val_prob)
         val_auc = val_metrics.get("roc_auc") or -1.0
 
-        row = {"epoch": epoch, "train_loss": loss_sum / max(n_seen, 1), **{f"val_{k}": v for k, v in val_metrics.items()}}
+        row = {
+            "epoch": epoch,
+            "train_loss": loss_sum / max(n_seen, 1),
+            **{f"val_{k}": v for k, v in val_metrics.items()},
+        }
         history.append(row)
-        print(f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_auc:.6f} val_logloss={val_metrics['log_loss']:.6f}")
+        print(
+            f"[{config['name']}] epoch={epoch} train_loss={row['train_loss']:.6f} val_auc={val_auc:.6f} val_logloss={val_metrics['log_loss']:.6f}"
+        )
 
         if val_auc > best_val_auc:
             best_val_auc = val_auc
             best_epoch = epoch
             bad_epochs = 0
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {
+                k: v.detach().cpu().clone() for k, v in model.state_dict().items()
+            }
         else:
             bad_epochs += 1
 
@@ -268,13 +298,20 @@ def sweep_ensembles(val_y, test_y, lr_val, lr_test, autoint_val, autoint_test):
         test_prob = (1 - alpha) * lr_test + alpha * autoint_test
         val_m = model_metrics(val_y, val_prob)
         test_m = model_metrics(test_y, test_prob)
-        score = (val_m.get("roc_auc") or 0.0) + 0.20 * (val_m.get("pr_auc") or 0.0) - 0.05 * val_m["log_loss"] - 0.05 * val_m["ece"]
-        candidates.append({
-            "alpha_autoint": float(alpha),
-            "val_metrics": val_m,
-            "test_metrics": test_m,
-            "validation_selection_score": float(score),
-        })
+        score = (
+            (val_m.get("roc_auc") or 0.0)
+            + 0.20 * (val_m.get("pr_auc") or 0.0)
+            - 0.05 * val_m["log_loss"]
+            - 0.05 * val_m["ece"]
+        )
+        candidates.append(
+            {
+                "alpha_autoint": float(alpha),
+                "val_metrics": val_m,
+                "test_metrics": test_m,
+                "validation_selection_score": float(score),
+            }
+        )
     return max(candidates, key=lambda x: x["validation_selection_score"]), candidates
 
 
@@ -325,10 +362,18 @@ def main():
     if not data_dir:
         raise SystemExit("Set CRITEO_CLICK_DIR first.")
 
-    max_rows = int(os.environ.get("AUTOINT_MAX_ROWS", os.environ.get("DEEPCTR_V2_MAX_ROWS", "250000")))
+    max_rows = int(
+        os.environ.get(
+            "AUTOINT_MAX_ROWS", os.environ.get("DEEPCTR_V2_MAX_ROWS", "250000")
+        )
+    )
     max_files = int(os.environ.get("AUTOINT_MAX_FILES", "6"))
     epochs = int(os.environ.get("AUTOINT_EPOCHS", "16"))
-    hash_size = int(os.environ.get("AUTOINT_HASH_SIZE", os.environ.get("DEEPCTR_V2_HASH_SIZE", "120000")))
+    hash_size = int(
+        os.environ.get(
+            "AUTOINT_HASH_SIZE", os.environ.get("DEEPCTR_V2_HASH_SIZE", "120000")
+        )
+    )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
@@ -336,7 +381,9 @@ def main():
         print("GPU:", torch.cuda.get_device_name(0))
         print("Torch CUDA build:", torch.version.cuda)
 
-    raw, source_files = load_criteo_click_sample(data_dir, max_rows=max_rows, max_files=max_files)
+    raw, source_files = load_criteo_click_sample(
+        data_dir, max_rows=max_rows, max_files=max_files
+    )
     target_col = detect_target(raw)
     raw.columns = [str(c).strip() for c in raw.columns]
     numeric_cols, categorical_cols = detect_features(raw, target_col)
@@ -344,8 +391,12 @@ def main():
 
     y = df[target_col].to_numpy(dtype=np.float32)
     idx = np.arange(len(df))
-    train_full_idx, test_idx = train_test_split(idx, test_size=0.30, random_state=42, stratify=y)
-    train_idx, val_idx = train_test_split(train_full_idx, test_size=0.15, random_state=42, stratify=y[train_full_idx])
+    train_full_idx, test_idx = train_test_split(
+        idx, test_size=0.30, random_state=42, stratify=y
+    )
+    train_idx, val_idx = train_test_split(
+        train_full_idx, test_size=0.15, random_state=42, stratify=y[train_full_idx]
+    )
 
     print("Rows:", len(df))
     print("Train/val/test:", len(train_idx), len(val_idx), len(test_idx))
@@ -356,7 +407,9 @@ def main():
     print("Hash size:", hash_size)
 
     print("Training same-split LR baseline...")
-    lr_result = fit_lr_baseline(df, numeric_cols, categorical_cols, target_col, train_idx, val_idx, test_idx)
+    lr_result = fit_lr_baseline(
+        df, numeric_cols, categorical_cols, target_col, train_idx, val_idx, test_idx
+    )
     print("LR test metrics:", lr_result["test_metrics"])
 
     x_num = numeric_matrix(df, numeric_cols)
@@ -366,9 +419,13 @@ def main():
     runs = []
     for config in default_configs(hash_size, epochs):
         print(f"Training AutoInt config: {config['name']}")
-        runs.append(train_autoint(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device))
+        runs.append(
+            train_autoint(config, x_num, x_cat, y, train_idx, val_idx, test_idx, device)
+        )
 
-    best_autoint = max(runs, key=lambda r: r["calibrated_test_metrics"].get("roc_auc") or -1.0)
+    best_autoint = max(
+        runs, key=lambda r: r["calibrated_test_metrics"].get("roc_auc") or -1.0
+    )
     ensemble_best, ensemble_candidates = sweep_ensembles(
         val_y=best_autoint["val_y"],
         test_y=best_autoint["test_y"],
@@ -402,13 +459,18 @@ def main():
         }
 
     checks = {
-        "ensemble_auc_not_worse_than_lr": (ens_test.get("roc_auc") or 0.0) >= (lr_test.get("roc_auc") or 0.0) - 0.0005,
-        "ensemble_pr_auc_not_worse_than_lr": (ens_test.get("pr_auc") or 0.0) >= (lr_test.get("pr_auc") or 0.0) - 0.0005,
+        "ensemble_auc_not_worse_than_lr": (ens_test.get("roc_auc") or 0.0)
+        >= (lr_test.get("roc_auc") or 0.0) - 0.0005,
+        "ensemble_pr_auc_not_worse_than_lr": (ens_test.get("pr_auc") or 0.0)
+        >= (lr_test.get("pr_auc") or 0.0) - 0.0005,
         "ensemble_ece_improves_lr": ens_test["ece"] <= lr_test["ece"] * 0.90,
-        "autoint_component_trained_on_cuda": device.type == "cuda" and best_autoint["best_epoch"] >= 1,
+        "autoint_component_trained_on_cuda": device.type == "cuda"
+        and best_autoint["best_epoch"] >= 1,
     }
     if deepfm_comparison:
-        checks["autoint_matches_or_beats_deepfm_on_2_metrics"] = deepfm_comparison["autoint_ensemble_metrics_better_or_equal_count"] >= 2
+        checks["autoint_matches_or_beats_deepfm_on_2_metrics"] = (
+            deepfm_comparison["autoint_ensemble_metrics_better_or_equal_count"] >= 2
+        )
 
     status = "PASS" if all(checks.values()) else "ITERATE"
 
@@ -422,7 +484,9 @@ def main():
         "categorical_feature_count": len(categorical_cols),
         "hash_size": hash_size,
         "device": str(device),
-        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "gpu_name": torch.cuda.get_device_name(0)
+        if torch.cuda.is_available()
+        else None,
         "torch_version": torch.__version__,
         "torch_cuda_build": torch.version.cuda,
         "train_rows": int(len(train_idx)),
@@ -465,13 +529,17 @@ def main():
         },
     }
 
-    (OUTPUTS / "criteo_click_autoint_gpu_metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    (OUTPUTS / "criteo_click_autoint_gpu_metrics.json").write_text(
+        json.dumps(result, indent=2), encoding="utf-8"
+    )
 
     hist_rows = []
     for r in runs:
         for h in r["history"]:
             hist_rows.append({"config": r["config"]["name"], **h})
-    pd.DataFrame(hist_rows).to_csv(OUTPUTS / "criteo_click_autoint_gpu_training_history.csv", index=False)
+    pd.DataFrame(hist_rows).to_csv(
+        OUTPUTS / "criteo_click_autoint_gpu_training_history.csv", index=False
+    )
     pd.DataFrame(ensemble_candidates).to_json(
         OUTPUTS / "criteo_click_autoint_gpu_ensemble_candidates.json",
         orient="records",
@@ -493,9 +561,9 @@ This run uses a local public Criteo Click Logs sample and local GPU training onl
 ## Environment
 
 - Device: `{device}`
-- GPU: `{result['gpu_name']}`
-- PyTorch: `{result['torch_version']}`
-- Torch CUDA build: `{result['torch_cuda_build']}`
+- GPU: `{result["gpu_name"]}`
+- PyTorch: `{result["torch_version"]}`
+- Torch CUDA build: `{result["torch_cuda_build"]}`
 
 ## Experiment purpose
 
@@ -503,10 +571,10 @@ This experiment tests whether an AutoInt-style self-attention feature-interactio
 
 ## Data summary
 
-- Rows: {result['rows']}
-- Train / validation / test rows: {result['train_rows']} / {result['val_rows']} / {result['test_rows']}
+- Rows: {result["rows"]}
+- Train / validation / test rows: {result["train_rows"]} / {result["val_rows"]} / {result["test_rows"]}
 - Target column: `{target_col}`
-- Positive rate: {result['positive_rate']:.6f}
+- Positive rate: {result["positive_rate"]:.6f}
 - Numeric features: {len(numeric_cols)}
 - Categorical features: {len(categorical_cols)}
 - Hash size per categorical field: {hash_size}
@@ -515,24 +583,26 @@ This experiment tests whether an AutoInt-style self-attention feature-interactio
 
 | Metric | LR baseline | Selected AutoInt | LR + AutoInt ensemble | LR + DeepFM v2 ensemble |
 |---|---:|---:|---:|---:|
-| ROC-AUC | {lr_test.get('roc_auc')} | {auto_test.get('roc_auc')} | {ens_test.get('roc_auc')} | {deepfm_auc} |
-| PR-AUC | {lr_test.get('pr_auc')} | {auto_test.get('pr_auc')} | {ens_test.get('pr_auc')} | {deepfm_pr} |
-| Log loss | {lr_test.get('log_loss')} | {auto_test.get('log_loss')} | {ens_test.get('log_loss')} | {deepfm_ll} |
-| Brier | {lr_test.get('brier')} | {auto_test.get('brier')} | {ens_test.get('brier')} | {deepfm_brier} |
-| ECE | {lr_test.get('ece')} | {auto_test.get('ece')} | {ens_test.get('ece')} | {deepfm_ece} |
+| ROC-AUC | {lr_test.get("roc_auc")} | {auto_test.get("roc_auc")} | {ens_test.get("roc_auc")} | {deepfm_auc} |
+| PR-AUC | {lr_test.get("pr_auc")} | {auto_test.get("pr_auc")} | {ens_test.get("pr_auc")} | {deepfm_pr} |
+| Log loss | {lr_test.get("log_loss")} | {auto_test.get("log_loss")} | {ens_test.get("log_loss")} | {deepfm_ll} |
+| Brier | {lr_test.get("brier")} | {auto_test.get("brier")} | {ens_test.get("brier")} | {deepfm_brier} |
+| ECE | {lr_test.get("ece")} | {auto_test.get("ece")} | {ens_test.get("ece")} | {deepfm_ece} |
 
 ## Release decision
 
 - Status: **{status}**
 - Checks: {checks}
-- Reason: {result['release_decision']['reason']}
+- Reason: {result["release_decision"]["reason"]}
 
 ## Interpretation
 
 AutoInt maps numerical and categorical CTR fields into feature tokens and applies multi-head self-attention to model high-order feature interactions. The release gate promotes attention only if the validation-selected residual ensemble preserves LR ranking quality, improves calibration, and meaningfully compares with the prior DeepFM residual ensemble.
 """
 
-    (REPORTS / "criteo_click_autoint_gpu_report.md").write_text(report, encoding="utf-8")
+    (REPORTS / "criteo_click_autoint_gpu_report.md").write_text(
+        report, encoding="utf-8"
+    )
 
     print("AutoInt attention CTR public-data validation finished.")
     print("Report:", REPORTS / "criteo_click_autoint_gpu_report.md")

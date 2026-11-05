@@ -1,6 +1,5 @@
-
-import os
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -20,8 +19,6 @@ def trapz_area(values):
     return float(np.sum((values[1:] + values[:-1]) / 2.0))
 
 
-
-
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_DIR = ROOT / "reports"
 OUTPUT_DIR = ROOT / "outputs"
@@ -31,16 +28,14 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 def to_binary(series):
     s = series.astype(str).str.strip().str.lower()
-    mapped = s.map({
-        "1": 1, "0": 0,
-        "true": 1, "false": 0,
-        "yes": 1, "no": 0
-    })
+    mapped = s.map({"1": 1, "0": 0, "true": 1, "false": 0, "yes": 1, "no": 0})
     numeric = pd.to_numeric(series, errors="coerce")
     return mapped.fillna(numeric).fillna(0).astype(int)
 
 
-def read_balanced_criteo(path, n_per_group=120000, chunksize=250000, target_col="conversion"):
+def read_balanced_criteo(
+    path, n_per_group=120000, chunksize=250000, target_col="conversion"
+):
     treated_parts = []
     control_parts = []
     feature_cols = None
@@ -50,7 +45,9 @@ def read_balanced_criteo(path, n_per_group=120000, chunksize=250000, target_col=
         chunk.columns = [str(c).strip() for c in chunk.columns]
         missing = required - set(chunk.columns)
         if missing:
-            raise ValueError(f"Missing required columns: {missing}. Available columns: {chunk.columns.tolist()}")
+            raise ValueError(
+                f"Missing required columns: {missing}. Available columns: {chunk.columns.tolist()}"
+            )
 
         feature_cols = [c for c in chunk.columns if c.startswith("f")]
         if not feature_cols:
@@ -67,10 +64,14 @@ def read_balanced_criteo(path, n_per_group=120000, chunksize=250000, target_col=
         control = chunk[chunk["treatment"] == 0]
 
         if len(treated_parts) == 0 or sum(len(x) for x in treated_parts) < n_per_group:
-            treated_parts.append(treated.head(max(0, n_per_group - sum(len(x) for x in treated_parts))))
+            treated_parts.append(
+                treated.head(max(0, n_per_group - sum(len(x) for x in treated_parts)))
+            )
 
         if len(control_parts) == 0 or sum(len(x) for x in control_parts) < n_per_group:
-            control_parts.append(control.head(max(0, n_per_group - sum(len(x) for x in control_parts))))
+            control_parts.append(
+                control.head(max(0, n_per_group - sum(len(x) for x in control_parts)))
+            )
 
         n_treated = sum(len(x) for x in treated_parts)
         n_control = sum(len(x) for x in control_parts)
@@ -90,10 +91,14 @@ def read_balanced_criteo(path, n_per_group=120000, chunksize=250000, target_col=
     if df[target_col].nunique() < 2:
         alt = "visit" if target_col == "conversion" else "conversion"
         if df[alt].nunique() >= 2:
-            print(f"[WARN] Target {target_col} has one class in sample. Switching to {alt}.")
+            print(
+                f"[WARN] Target {target_col} has one class in sample. Switching to {alt}."
+            )
             target_col = alt
         else:
-            raise ValueError("Both conversion and visit have one class in sampled data.")
+            raise ValueError(
+                "Both conversion and visit have one class in sampled data."
+            )
 
     return df, feature_cols, target_col
 
@@ -142,7 +147,9 @@ def main():
         raise FileNotFoundError(path)
 
     print(f"Loading Criteo Uplift sample from: {path}")
-    df, feature_cols, target_col = read_balanced_criteo(path, n_per_group=120000, target_col="conversion")
+    df, feature_cols, target_col = read_balanced_criteo(
+        path, n_per_group=120000, target_col="conversion"
+    )
 
     print("Loaded sample:")
     print(df.shape)
@@ -153,24 +160,35 @@ def main():
     print(df.groupby("treatment")[target_col].mean())
 
     train, test = train_test_split(
-        df,
-        test_size=0.35,
-        random_state=42,
-        stratify=df["treatment"]
+        df, test_size=0.35, random_state=42, stratify=df["treatment"]
     )
 
     treated_train = train[train["treatment"] == 1]
     control_train = train[train["treatment"] == 0]
 
-    if treated_train[target_col].nunique() < 2 or control_train[target_col].nunique() < 2:
+    if (
+        treated_train[target_col].nunique() < 2
+        or control_train[target_col].nunique() < 2
+    ):
         print("[WARN] One subgroup has single-class target. Switching target to visit.")
         target_col = "visit"
-        if treated_train[target_col].nunique() < 2 or control_train[target_col].nunique() < 2:
-            raise ValueError("Even visit target has single-class subgroup. Increase n_per_group.")
+        if (
+            treated_train[target_col].nunique() < 2
+            or control_train[target_col].nunique() < 2
+        ):
+            raise ValueError(
+                "Even visit target has single-class subgroup. Increase n_per_group."
+            )
 
-    mt = HistGradientBoostingClassifier(max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=42)
-    mc = HistGradientBoostingClassifier(max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=43)
-    pooled = HistGradientBoostingClassifier(max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=44)
+    mt = HistGradientBoostingClassifier(
+        max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=42
+    )
+    mc = HistGradientBoostingClassifier(
+        max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=43
+    )
+    pooled = HistGradientBoostingClassifier(
+        max_iter=120, learning_rate=0.06, max_leaf_nodes=31, random_state=44
+    )
 
     mt.fit(treated_train[feature_cols], treated_train[target_col])
     mc.fit(control_train[feature_cols], control_train[target_col])
@@ -188,9 +206,14 @@ def main():
         "test_rows": int(len(out)),
         "feature_count": int(len(feature_cols)),
         "target_col": target_col,
-        "treatment_counts": {str(k): int(v) for k, v in df["treatment"].value_counts().to_dict().items()},
+        "treatment_counts": {
+            str(k): int(v) for k, v in df["treatment"].value_counts().to_dict().items()
+        },
         "overall_target_rate": float(df[target_col].mean()),
-        "target_rate_by_treatment": {str(k): float(v) for k, v in df.groupby("treatment")[target_col].mean().to_dict().items()},
+        "target_rate_by_treatment": {
+            str(k): float(v)
+            for k, v in df.groupby("treatment")[target_col].mean().to_dict().items()
+        },
         "uplift_model": {
             "auuc": auuc(out, "pred_uplift", target_col),
             "qini_proxy": qini_proxy(out, "pred_uplift", target_col),
@@ -201,12 +224,11 @@ def main():
             "auuc": auuc(out, "pcvr_baseline", target_col),
             "qini_proxy": qini_proxy(out, "pcvr_baseline", target_col),
             "uplift_at_20pct": uplift_at_k(out, "pcvr_baseline", target_col, frac=0.2),
-        }
+        },
     }
 
     (OUTPUT_DIR / "criteo_uplift_predictions_sample.csv").write_text(
-        out.head(5000).to_csv(index=False),
-        encoding="utf-8"
+        out.head(5000).to_csv(index=False), encoding="utf-8"
     )
 
     with open(OUTPUT_DIR / "criteo_uplift_metrics.json", "w", encoding="utf-8") as f:

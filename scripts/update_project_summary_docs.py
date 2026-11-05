@@ -15,8 +15,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUTS = ROOT / "outputs"
@@ -27,7 +26,7 @@ START = "<!-- PUBLIC_VALIDATION_SUMMARY_START -->"
 END = "<!-- PUBLIC_VALIDATION_SUMMARY_END -->"
 
 
-def read_json(name: str) -> Optional[Dict[str, Any]]:
+def read_json(name: str) -> dict[str, Any] | None:
     path = OUTPUTS / name
     if not path.exists():
         return None
@@ -47,13 +46,13 @@ def fmt(x: Any, digits: int = 6) -> str:
         return str(x)
 
 
-def pct_reduction(old: Optional[float], new: Optional[float]) -> Optional[float]:
+def pct_reduction(old: float | None, new: float | None) -> float | None:
     if old is None or new is None or old == 0:
         return None
     return (old - new) / old * 100.0
 
 
-def get_path(obj: Optional[Dict[str, Any]], *keys: str) -> Any:
+def get_path(obj: dict[str, Any] | None, *keys: str) -> Any:
     cur: Any = obj
     for key in keys:
         if not isinstance(cur, dict) or key not in cur:
@@ -66,7 +65,7 @@ def table_row(module: str, dataset: str, status: str, evidence: str) -> str:
     return f"| {module} | {dataset} | {status} | {evidence} |"
 
 
-def build_summary() -> tuple[Dict[str, Any], str]:
+def build_summary() -> tuple[dict[str, Any], str]:
     public_summary = read_json("public_validation_summary.json") or {}
     deepfm = read_json("criteo_click_deepctr_gpu_v2_metrics.json")
     autoint = read_json("criteo_click_autoint_gpu_metrics.json")
@@ -78,102 +77,140 @@ def build_summary() -> tuple[Dict[str, Any], str]:
     highlights = []
 
     for m in public_summary.get("modules", []):
-        rows.append(table_row(
-            str(m.get("module", "unknown")),
-            str(m.get("dataset", "unknown")),
-            str(m.get("status", "UNKNOWN")),
-            str(m.get("primary_result", "")),
-        ))
+        rows.append(
+            table_row(
+                str(m.get("module", "unknown")),
+                str(m.get("dataset", "unknown")),
+                str(m.get("status", "UNKNOWN")),
+                str(m.get("primary_result", "")),
+            )
+        )
 
     lr = get_path(deepfm, "same_split_lr_baseline", "test_metrics") or {}
     ens = get_path(deepfm, "selected_lr_deep_ensemble", "test_metrics") or {}
-    deepfm_status = get_path(deepfm, "release_decision", "status") or get_path(deepfm, "release_decision", "overall_status") or "UNKNOWN"
+    deepfm_status = (
+        get_path(deepfm, "release_decision", "status")
+        or get_path(deepfm, "release_decision", "overall_status")
+        or "UNKNOWN"
+    )
     if lr and ens:
         ece_red = pct_reduction(lr.get("ece"), ens.get("ece"))
-        rows.append(table_row(
-            "GPU DeepCTR / DeepFM v2",
-            "Criteo Click Logs public sample",
-            str(deepfm_status),
-            (
-                f"LR+DeepFM ensemble: ROC-AUC {fmt(lr.get('roc_auc'), 4)} to {fmt(ens.get('roc_auc'), 4)}, "
-                f"PR-AUC {fmt(lr.get('pr_auc'), 4)} to {fmt(ens.get('pr_auc'), 4)}, "
-                f"log loss {fmt(lr.get('log_loss'), 5)} to {fmt(ens.get('log_loss'), 5)}, "
-                f"ECE {fmt(lr.get('ece'), 5)} to {fmt(ens.get('ece'), 5)}"
-                + (f" ({ece_red:.1f}% reduction)." if ece_red is not None else ".")
-            ),
-        ))
-        highlights.append("GPU DeepFM v2 is the current CTR champion: a validation-selected LR+DeepFM ensemble improved ranking and calibration over the same-split LR baseline.")
+        rows.append(
+            table_row(
+                "GPU DeepCTR / DeepFM v2",
+                "Criteo Click Logs public sample",
+                str(deepfm_status),
+                (
+                    f"LR+DeepFM ensemble: ROC-AUC {fmt(lr.get('roc_auc'), 4)} to {fmt(ens.get('roc_auc'), 4)}, "
+                    f"PR-AUC {fmt(lr.get('pr_auc'), 4)} to {fmt(ens.get('pr_auc'), 4)}, "
+                    f"log loss {fmt(lr.get('log_loss'), 5)} to {fmt(ens.get('log_loss'), 5)}, "
+                    f"ECE {fmt(lr.get('ece'), 5)} to {fmt(ens.get('ece'), 5)}"
+                    + (f" ({ece_red:.1f}% reduction)." if ece_red is not None else ".")
+                ),
+            )
+        )
+        highlights.append(
+            "GPU DeepFM v2 is the current CTR champion: a validation-selected LR+DeepFM ensemble improved ranking and calibration over the same-split LR baseline."
+        )
 
     auto_lr = get_path(autoint, "same_split_lr_baseline", "test_metrics") or {}
     auto_ens = get_path(autoint, "selected_lr_autoint_ensemble", "test_metrics") or {}
     auto_status = get_path(autoint, "release_decision", "status") or "UNKNOWN"
     if auto_lr and auto_ens:
-        rows.append(table_row(
-            "GPU AutoInt attention CTR",
-            "Criteo Click Logs public sample",
-            str(auto_status),
-            (
-                f"LR+AutoInt ensemble: ROC-AUC {fmt(auto_lr.get('roc_auc'), 4)} to {fmt(auto_ens.get('roc_auc'), 4)}, "
-                f"PR-AUC {fmt(auto_lr.get('pr_auc'), 4)} to {fmt(auto_ens.get('pr_auc'), 4)}, "
-                f"ECE {fmt(auto_lr.get('ece'), 5)} to {fmt(auto_ens.get('ece'), 5)}; held at ITERATE versus DeepFM champion."
-            ),
-        ))
+        rows.append(
+            table_row(
+                "GPU AutoInt attention CTR",
+                "Criteo Click Logs public sample",
+                str(auto_status),
+                (
+                    f"LR+AutoInt ensemble: ROC-AUC {fmt(auto_lr.get('roc_auc'), 4)} to {fmt(auto_ens.get('roc_auc'), 4)}, "
+                    f"PR-AUC {fmt(auto_lr.get('pr_auc'), 4)} to {fmt(auto_ens.get('pr_auc'), 4)}, "
+                    f"ECE {fmt(auto_lr.get('ece'), 5)} to {fmt(auto_ens.get('ece'), 5)}; held at ITERATE versus DeepFM champion."
+                ),
+            )
+        )
 
     res_lr = get_path(resbias, "same_split_lr_baseline", "test_metrics") or {}
-    res = get_path(resbias, "selected_lambda_temperature_candidate", "test_metrics") or {}
-    res_status = get_path(resbias, "release_decision", "overall_status") or get_path(resbias, "release_decision", "lr_gate_status") or "UNKNOWN"
+    res = (
+        get_path(resbias, "selected_lambda_temperature_candidate", "test_metrics") or {}
+    )
+    res_status = (
+        get_path(resbias, "release_decision", "overall_status")
+        or get_path(resbias, "release_decision", "lr_gate_status")
+        or "UNKNOWN"
+    )
     if res_lr and res:
         ece_red = pct_reduction(res_lr.get("ece"), res.get("ece"))
-        rows.append(table_row(
-            "GPU residual-bias CTR v2",
-            "Criteo Click Logs public sample",
-            str(res_status),
-            (
-                f"Paper-inspired LR-offset residual logit correction: ROC-AUC {fmt(res_lr.get('roc_auc'), 4)} to {fmt(res.get('roc_auc'), 4)}, "
-                f"PR-AUC {fmt(res_lr.get('pr_auc'), 4)} to {fmt(res.get('pr_auc'), 4)}, "
-                f"log loss {fmt(res_lr.get('log_loss'), 5)} to {fmt(res.get('log_loss'), 5)}, "
-                f"ECE {fmt(res_lr.get('ece'), 5)} to {fmt(res.get('ece'), 5)}"
-                + (f" ({ece_red:.1f}% reduction); passed LR gate but not DeepFM champion upgrade." if ece_red is not None else ".")
-            ),
-        ))
-        highlights.append("Residual-bias CTR v2 validates the paper-inspired bias-correction specialty against LR, but DeepFM v2 remains the CTR champion.")
+        rows.append(
+            table_row(
+                "GPU residual-bias CTR v2",
+                "Criteo Click Logs public sample",
+                str(res_status),
+                (
+                    f"Paper-inspired LR-offset residual logit correction: ROC-AUC {fmt(res_lr.get('roc_auc'), 4)} to {fmt(res.get('roc_auc'), 4)}, "
+                    f"PR-AUC {fmt(res_lr.get('pr_auc'), 4)} to {fmt(res.get('pr_auc'), 4)}, "
+                    f"log loss {fmt(res_lr.get('log_loss'), 5)} to {fmt(res.get('log_loss'), 5)}, "
+                    f"ECE {fmt(res_lr.get('ece'), 5)} to {fmt(res.get('ece'), 5)}"
+                    + (
+                        f" ({ece_red:.1f}% reduction); passed LR gate but not DeepFM champion upgrade."
+                        if ece_red is not None
+                        else "."
+                    )
+                ),
+            )
+        )
+        highlights.append(
+            "Residual-bias CTR v2 validates the paper-inspired bias-correction specialty against LR, but DeepFM v2 remains the CTR champion."
+        )
 
     base_test = get_path(esci_abc, "baseline_test") or {}
     abc_test = get_path(esci_abc, "abc_test") or {}
     abc_status = get_path(esci_abc, "release_decision", "status") or "UNKNOWN"
     if base_test and abc_test:
-        rows.append(table_row(
-            "ABC-style ESCI reranker v2",
-            "Amazon ESCI public sample",
-            str(abc_status),
-            (
-                f"NDCG@10 {fmt(base_test.get('ndcg_at_10'), 4)} to {fmt(abc_test.get('ndcg_at_10'), 4)}, "
-                f"Recall@10 {fmt(base_test.get('recall_at_10'), 4)} to {fmt(abc_test.get('recall_at_10'), 4)}, "
-                f"Precision@10 {fmt(base_test.get('precision_at_10'), 4)} to {fmt(abc_test.get('precision_at_10'), 4)}, "
-                f"high-rank irrelevant {fmt(base_test.get('high_rank_irrelevant_rate'), 4)} to {fmt(abc_test.get('high_rank_irrelevant_rate'), 4)}."
-            ),
-        ))
-        highlights.append("ABC-style ESCI reranker v2 is the strongest specialty result: it passed NDCG, recall, precision, and irrelevant-rate guardrails.")
+        rows.append(
+            table_row(
+                "ABC-style ESCI reranker v2",
+                "Amazon ESCI public sample",
+                str(abc_status),
+                (
+                    f"NDCG@10 {fmt(base_test.get('ndcg_at_10'), 4)} to {fmt(abc_test.get('ndcg_at_10'), 4)}, "
+                    f"Recall@10 {fmt(base_test.get('recall_at_10'), 4)} to {fmt(abc_test.get('recall_at_10'), 4)}, "
+                    f"Precision@10 {fmt(base_test.get('precision_at_10'), 4)} to {fmt(abc_test.get('precision_at_10'), 4)}, "
+                    f"high-rank irrelevant {fmt(base_test.get('high_rank_irrelevant_rate'), 4)} to {fmt(abc_test.get('high_rank_irrelevant_rate'), 4)}."
+                ),
+            )
+        )
+        highlights.append(
+            "ABC-style ESCI reranker v2 is the strongest specialty result: it passed NDCG, recall, precision, and irrelevant-rate guardrails."
+        )
 
     best = get_path(esci_ablation, "best_variant_by_guardrail_score") or {}
     variants = esci_ablation.get("variants", []) if esci_ablation else []
-    expected_gain = next((v for v in variants if v.get("variant") == "expected_gain_only"), None)
-    expansion_only = next((v for v in variants if v.get("variant") == "expansion_only"), None)
+    expected_gain = next(
+        (v for v in variants if v.get("variant") == "expected_gain_only"), None
+    )
+    expansion_only = next(
+        (v for v in variants if v.get("variant") == "expansion_only"), None
+    )
     if best:
         bm = best.get("test_metrics", {})
         bp = best.get("parameters", {})
-        rows.append(table_row(
-            "ABC-style ESCI ablation",
-            "Amazon ESCI public sample",
-            "EVIDENCE_STRENGTHENED",
-            (
-                f"Best variant {best.get('variant')} with alpha={bp.get('alpha_expansion')}, beta={bp.get('beta_expected_gain')}, "
-                f"gamma={bp.get('gamma_relevance')}, delta={bp.get('delta_overreach')}: "
-                f"NDCG@10 {fmt(bm.get('ndcg_at_10'), 4)}, Recall@10 {fmt(bm.get('recall_at_10'), 4)}, "
-                f"high-rank irrelevant {fmt(bm.get('high_rank_irrelevant_rate'), 4)}."
-            ),
-        ))
-        highlights.append("Ablation shows learned expected-gain scoring is the primary driver; expansion alone is unsafe because it improves NDCG but hurts recall and irrelevant-rate guardrails.")
+        rows.append(
+            table_row(
+                "ABC-style ESCI ablation",
+                "Amazon ESCI public sample",
+                "EVIDENCE_STRENGTHENED",
+                (
+                    f"Best variant {best.get('variant')} with alpha={bp.get('alpha_expansion')}, beta={bp.get('beta_expected_gain')}, "
+                    f"gamma={bp.get('gamma_relevance')}, delta={bp.get('delta_overreach')}: "
+                    f"NDCG@10 {fmt(bm.get('ndcg_at_10'), 4)}, Recall@10 {fmt(bm.get('recall_at_10'), 4)}, "
+                    f"high-rank irrelevant {fmt(bm.get('high_rank_irrelevant_rate'), 4)}."
+                ),
+            )
+        )
+        highlights.append(
+            "Ablation shows learned expected-gain scoring is the primary driver; expansion alone is unsafe because it improves NDCG but hurts recall and irrelevant-rate guardrails."
+        )
 
     ablation_notes = ""
     if expected_gain and expansion_only:
@@ -261,8 +298,12 @@ def main() -> None:
 
     summary_json, summary_md = build_summary()
     (REPORTS / "public_validation_summary.md").write_text(summary_md, encoding="utf-8")
-    (REPORTS / "final_model_evidence_summary.md").write_text(summary_md, encoding="utf-8")
-    (OUTPUTS / "public_validation_summary.json").write_text(json.dumps(summary_json, indent=2), encoding="utf-8")
+    (REPORTS / "final_model_evidence_summary.md").write_text(
+        summary_md, encoding="utf-8"
+    )
+    (OUTPUTS / "public_validation_summary.json").write_text(
+        json.dumps(summary_json, indent=2), encoding="utf-8"
+    )
     update_readme(summary_md)
 
     print("Updated:")

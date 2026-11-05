@@ -1,12 +1,14 @@
 import numpy as np
 
+
 class TorchEmbeddingMLP:
-    '''
+    """
     Optional lightweight PyTorch DNN model for smoke/sample runs.
 
     The pipeline remains runnable without this class being trained. It is provided
     as a JD-aligned DNN implementation hook.
-    '''
+    """
+
     def __init__(self, epochs=3, lr=1e-3, seed=42):
         self.epochs = epochs
         self.lr = lr
@@ -14,6 +16,7 @@ class TorchEmbeddingMLP:
         self.available = False
         try:
             import torch
+
             self.torch = torch
             self.available = True
         except Exception:
@@ -57,5 +60,7 @@ class TorchEmbeddingMLP:
         X = np.asarray(X, dtype=np.float32)
         Xn = (X - self.mean_) / self.std_
         with torch.no_grad():
-            pred = self.model_(torch.tensor(Xn, dtype=torch.float32)).numpy().reshape(-1)
+            pred = (
+                self.model_(torch.tensor(Xn, dtype=torch.float32)).numpy().reshape(-1)
+            )
         return np.clip(pred, 1e-6, 1 - 1e-6)
