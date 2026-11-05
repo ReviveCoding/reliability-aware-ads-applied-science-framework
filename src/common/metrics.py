@@ -129,9 +129,17 @@ def bootstrap_ci(values, n_boot=30, seed=42, alpha=0.05):
     if len(values) == 0:
         return (float("nan"), float("nan"))
     means = []
-    for _ in range(n_boot):
-        sample = rng.choice(values, size=len(values), replace=True)
-        means.append(sample.mean())
+    if values.ndim == 1 and values.dtype.kind in "biuf":
+        batch_size = max(1, (8 * 1024 * 1024) // (len(values) * values.itemsize))
+        for first in range(0, n_boot, batch_size):
+            count = min(batch_size, n_boot - first)
+            means.extend(
+                rng.choice(values, size=(count, len(values)), replace=True).mean(axis=1)
+            )
+    else:
+        for _ in range(n_boot):
+            sample = rng.choice(values, size=len(values), replace=True)
+            means.append(sample.mean())
     return float(np.quantile(means, alpha / 2)), float(
         np.quantile(means, 1 - alpha / 2)
     )
